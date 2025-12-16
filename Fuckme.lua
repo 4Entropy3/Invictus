@@ -13,6 +13,7 @@ local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local CoreGui = game:GetService("CoreGui")
 
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
@@ -43,7 +44,6 @@ local Connections = {}
 local Tornado_Time = tick()
 local Speed_Divisor_Multiplier = 1.1
 local LobbyAP_Speed_Divisor_Multiplier = 1.1
-local Selected_Parry_Type = "Camera"
 local Parried = false
 local Last_Parry = 0
 local Parries = 0
@@ -55,65 +55,17 @@ local Last_Warping = tick()
 local Curving = tick()
 local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 
-local HashOne, HashTwo, HashThree
-local ShouldPlayerJump, MainRemote, GetOpponentPosition
-local Parry_Key
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "InvictusESP"
+ESPFolder.Parent = CoreGui
 
-local function SafeInit()
-    pcall(function()
-        local PropertyChangeOrder = {}
-        
-        for _, Value in next, getgc() do
-            if typeof(Value) == "function" and islclosure(Value) then
-                local info = debug.info(Value, "s")
-                if info and info:find("SwordsController") then
-                    local line = debug.info(Value, "l")
-                    if line == 276 then
-                        HashOne = getconstant(Value, 62)
-                        HashTwo = getconstant(Value, 64)
-                        HashThree = getconstant(Value, 65)
-                    end
-                end
-            end
-        end
-        
-        for _, Object in next, game:GetDescendants() do
-            if Object:IsA("RemoteEvent") and Object.Name:find("\n") then
-                Object.Changed:Once(function()
-                    table.insert(PropertyChangeOrder, Object)
-                end)
-            end
-        end
-        
-        local startTime = tick()
-        repeat task.wait() until #PropertyChangeOrder >= 3 or tick() - startTime > 5
-        
-        if #PropertyChangeOrder >= 3 then
-            ShouldPlayerJump = PropertyChangeOrder[1]
-            MainRemote = PropertyChangeOrder[2]
-            GetOpponentPosition = PropertyChangeOrder[3]
-        end
-        
-        for _, v in pairs(getconnections(Player.PlayerGui.Hotbar.Block.Activated)) do
-            if v and v.Function and not iscclosure(v.Function) then
-                for _, v2 in pairs(getupvalues(v.Function)) do
-                    if type(v2) == "function" then
-                        Parry_Key = getupvalue(getupvalue(v2, 2), 17)
-                    end
-                end
-            end
-        end
-    end)
-end
+local ESPObjects = {}
+local TracerLine = nil
 
-task.spawn(SafeInit)
-
-local function Parry(...)
-    if ShouldPlayerJump and MainRemote and GetOpponentPosition and Parry_Key then
-        ShouldPlayerJump:FireServer(HashOne, Parry_Key, ...)
-        MainRemote:FireServer(HashTwo, Parry_Key, ...)
-        GetOpponentPosition:FireServer(HashThree, Parry_Key, ...)
-    end
+local function PressF()
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+    task.wait()
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
 end
 
 local function GetBall()
@@ -123,6 +75,7 @@ local function GetBall()
             return Ball
         end
     end
+    return nil
 end
 
 local function GetBalls()
@@ -137,16 +90,19 @@ local function GetBalls()
 end
 
 local function GetLobbyBall()
+    if not workspace:FindFirstChild("TrainingBalls") then return nil end
     for _, Ball in pairs(workspace.TrainingBalls:GetChildren()) do
         if Ball:GetAttribute("realBall") then
             return Ball
         end
     end
+    return nil
 end
 
 local function GetClosestPlayer()
     local MaxDist = math.huge
     local Found = nil
+    if not workspace:FindFirstChild("Alive") then return nil end
     for _, Entity in pairs(workspace.Alive:GetChildren()) do
         if tostring(Entity) ~= tostring(Player) and Entity.PrimaryPart then
             local Dist = Player:DistanceFromCharacter(Entity.PrimaryPart.Position)
@@ -165,6 +121,7 @@ local function IsCurved()
     if not Ball then return false end
     local Zoomies = Ball:FindFirstChild("zoomies")
     if not Zoomies then return false end
+    if not Player.Character or not Player.Character.PrimaryPart then return false end
     
     local Velocity = Zoomies.VectorVelocity
     local BallDir = Velocity.Unit
@@ -192,66 +149,6 @@ local function IsCurved()
     return Dot < DotThreshold
 end
 
-local function GetParryData(ParryType)
-    GetClosestPlayer()
-    local Events = {}
-    local Camera = workspace.CurrentCamera
-    local MouseLoc
-    
-    if isMobile then
-        MouseLoc = {Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2}
-    else
-        local ML = UserInputService:GetMouseLocation()
-        MouseLoc = {ML.X, ML.Y}
-    end
-    
-    for _, v in pairs(workspace.Alive:GetChildren()) do
-        if v ~= Player.Character and v.PrimaryPart then
-            local screenPos = Camera:WorldToScreenPoint(v.PrimaryPart.Position)
-            Events[tostring(v)] = screenPos
-        end
-    end
-    
-    if ParryType == "Camera" then
-        return {0, Camera.CFrame, Events, MouseLoc}
-    elseif ParryType == "Backwards" then
-        local BackDir = Camera.CFrame.LookVector * -10000
-        BackDir = Vector3.new(BackDir.X, 0, BackDir.Z)
-        return {0, CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + BackDir), Events, MouseLoc}
-    elseif ParryType == "Straight" and Closest_Entity then
-        return {0, CFrame.new(Player.Character.PrimaryPart.Position, Closest_Entity.PrimaryPart.Position), Events, MouseLoc}
-    elseif ParryType == "Random" then
-        return {0, CFrame.new(Camera.CFrame.Position, Vector3.new(math.random(-4000, 4000), math.random(-4000, 4000), math.random(-4000, 4000))), Events, MouseLoc}
-    elseif ParryType == "High" then
-        return {0, CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + Camera.CFrame.UpVector * 10000), Events, MouseLoc}
-    elseif ParryType == "Left" then
-        return {0, CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position - Camera.CFrame.RightVector * 10000), Events, MouseLoc}
-    elseif ParryType == "Right" then
-        return {0, CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + Camera.CFrame.RightVector * 10000), Events, MouseLoc}
-    end
-    
-    return {0, Camera.CFrame, Events, MouseLoc}
-end
-
-local function DoParry(ParryType)
-    local Data = GetParryData(ParryType)
-    
-    if getgenv().UseKeypress then
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, nil)
-        task.wait()
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, nil)
-    else
-        Parry(Data[1], Data[2], Data[3], Data[4])
-    end
-    
-    if Parries <= 7 then
-        Parries = Parries + 1
-        task.delay(0.5, function()
-            if Parries > 0 then Parries = Parries - 1 end
-        end)
-    end
-end
-
 pcall(function()
     ReplicatedStorage.Remotes.InfinityBall.OnClientEvent:Connect(function(a, b)
         Infinity = b == true
@@ -267,7 +164,7 @@ BlatantLeft:AddToggle("AutoParryToggle", {
     Default = false,
     Callback = function(Value)
         if Value then
-            Connections["AutoParry"] = RunService.PreSimulation:Connect(function()
+            Connections["AutoParry"] = RunService.Heartbeat:Connect(function()
                 if not Player.Character or not Player.Character.PrimaryPart then return end
                 
                 local BallsList = GetBalls()
@@ -277,10 +174,6 @@ BlatantLeft:AddToggle("AutoParryToggle", {
                     
                     local Zoomies = Ball:FindFirstChild("zoomies")
                     if not Zoomies then continue end
-                    
-                    Ball:GetAttributeChangedSignal("target"):Once(function()
-                        Parried = false
-                    end)
                     
                     if Parried then continue end
                     
@@ -321,42 +214,35 @@ BlatantLeft:AddToggle("AutoParryToggle", {
                     if getgenv().InfinityDetect and Infinity then continue end
                     
                     if BallTarget == tostring(Player) and Distance <= ParryAccuracy then
-                        local now = os.clock()
-                        if now - Last_Parry > 0.5 then
-                            pcall(function()
-                                local anim = ReplicatedStorage.Shared.SwordAPI.Collection.Default:FindFirstChild("GrabParry")
-                                if anim then
-                                    local track = Player.Character.Humanoid.Animator:LoadAnimation(anim)
-                                    track:Play()
-                                end
-                            end)
-                        end
-                        
-                        DoParry(Selected_Parry_Type)
-                        Last_Parry = now
+                        PressF()
                         Parried = true
+                        Last_Parry = tick()
+                        
+                        task.delay(0.5, function()
+                            Parried = false
+                        end)
+                        
+                        break
                     end
                 end
-                
-                local waitStart = tick()
-                repeat RunService.PreSimulation:Wait() until (tick() - waitStart) >= 1 or not Parried
-                Parried = false
+            end)
+            
+            Connections["ParryReset"] = workspace.Balls.ChildAdded:Connect(function(Ball)
+                task.wait(0.1)
+                Ball:GetAttributeChangedSignal("target"):Connect(function()
+                    Parried = false
+                end)
             end)
         else
             if Connections["AutoParry"] then
                 Connections["AutoParry"]:Disconnect()
                 Connections["AutoParry"] = nil
             end
+            if Connections["ParryReset"] then
+                Connections["ParryReset"]:Disconnect()
+                Connections["ParryReset"] = nil
+            end
         end
-    end
-})
-
-BlatantLeft:AddDropdown("CurveType", {
-    Text = "Curve Type",
-    Values = {"Camera", "Random", "Backwards", "Straight", "High", "Left", "Right"},
-    Default = "Camera",
-    Callback = function(Value)
-        Selected_Parry_Type = Value
     end
 })
 
@@ -389,14 +275,6 @@ BlatantLeft:AddToggle("InfinityDetectToggle", {
     end
 })
 
-BlatantLeft:AddToggle("KeypressToggle", {
-    Text = "Use Keypress",
-    Default = false,
-    Callback = function(Value)
-        getgenv().UseKeypress = Value
-    end
-})
-
 local BlatantRight = Tabs.Blatant:AddRightGroupbox("Lobby AP", "home")
 
 BlatantRight:AddToggle("LobbyAPToggle", {
@@ -412,10 +290,6 @@ BlatantRight:AddToggle("LobbyAPToggle", {
                 
                 local Zoomies = Ball:FindFirstChild("zoomies")
                 if not Zoomies then return end
-                
-                Ball:GetAttributeChangedSignal("target"):Once(function()
-                    Training_Parried = false
-                end)
                 
                 if Training_Parried then return end
                 
@@ -436,13 +310,22 @@ BlatantRight:AddToggle("LobbyAPToggle", {
                 local ParryAccuracy = Ping + math.max(Speed / (divisorBase * multiplier), 9.5)
                 
                 if BallTarget == tostring(Player) and Distance <= ParryAccuracy then
-                    DoParry(Selected_Parry_Type)
+                    PressF()
                     Training_Parried = true
+                    
+                    task.delay(0.5, function()
+                        Training_Parried = false
+                    end)
                 end
-                
-                local waitStart = tick()
-                repeat RunService.PreSimulation:Wait() until (tick() - waitStart) >= 1 or not Training_Parried
-                Training_Parried = false
+            end)
+            
+            Connections["LobbyReset"] = pcall(function()
+                workspace.TrainingBalls.ChildAdded:Connect(function(Ball)
+                    task.wait(0.1)
+                    Ball:GetAttributeChangedSignal("target"):Connect(function()
+                        Training_Parried = false
+                    end)
+                end)
             end)
         else
             if Connections["LobbyAP"] then
@@ -479,7 +362,7 @@ SpamGroup:AddToggle("AutoSpamToggle", {
     Default = false,
     Callback = function(Value)
         if Value then
-            Connections["AutoSpam"] = RunService.PreSimulation:Connect(function()
+            Connections["AutoSpam"] = RunService.Heartbeat:Connect(function()
                 if not Player.Character or not Player.Character.PrimaryPart then return end
                 
                 local Ball = GetBall()
@@ -504,8 +387,8 @@ SpamGroup:AddToggle("AutoSpamToggle", {
                 if Player.Character:GetAttribute("Pulsed") then return end
                 if BallTarget == tostring(Player) and TargetDist > 25 and Distance > 25 then return end
                 
-                if Distance <= SpamAccuracy and Parries > 2.5 then
-                    DoParry(Selected_Parry_Type)
+                if Distance <= SpamAccuracy and Parries > 2 then
+                    PressF()
                 end
             end)
         else
@@ -526,7 +409,7 @@ PlayerLeft:AddToggle("SpeedToggle", {
     Default = false,
     Callback = function(Value)
         if Value then
-            Connections["Speed"] = RunService.PreSimulation:Connect(function()
+            Connections["Speed"] = RunService.Heartbeat:Connect(function()
                 if Player.Character and Player.Character:FindFirstChild("Humanoid") then
                     Player.Character.Humanoid.WalkSpeed = StrafeSpeed
                 end
@@ -554,7 +437,7 @@ PlayerLeft:AddSlider("SpeedValue", {
     end
 })
 
-local spinSpeed = 1
+local spinSpeed = 5
 
 PlayerLeft:AddToggle("SpinToggle", {
     Text = "Spinbot",
@@ -576,7 +459,7 @@ PlayerLeft:AddToggle("SpinToggle", {
 
 PlayerLeft:AddSlider("SpinSpeed", {
     Text = "Spin Speed",
-    Default = 1,
+    Default = 5,
     Min = 1,
     Max = 50,
     Rounding = 0,
@@ -585,7 +468,7 @@ PlayerLeft:AddSlider("SpinSpeed", {
     end
 })
 
-local PlayerRight = Tabs.Player:AddRightGroupbox("Misc", "settings")
+local PlayerRight = Tabs.Player:AddRightGroupbox("Camera", "camera")
 
 PlayerRight:AddToggle("FOVToggle", {
     Text = "Custom FOV",
@@ -619,70 +502,84 @@ PlayerRight:AddSlider("FOVValue", {
     end
 })
 
-local ESPFolder = Instance.new("Folder", CoreGui)
-ESPFolder.Name = "InvictusESP"
-
-local function CreateESP(plr)
+local function CreateHighlight(plr)
     if plr == Player then return end
     
     local function Setup(char)
         if not char then return end
-        
         task.wait(0.5)
         
-        local hrp = char:WaitForChild("HumanoidRootPart", 5)
-        local head = char:WaitForChild("Head", 5)
-        local humanoid = char:WaitForChild("Humanoid", 5)
-        
-        if not hrp or not head or not humanoid then return end
+        if ESPObjects[plr.Name] then
+            for _, obj in pairs(ESPObjects[plr.Name]) do
+                pcall(function() obj:Destroy() end)
+            end
+        end
+        ESPObjects[plr.Name] = {}
         
         if getgenv().BoxESPEnabled then
-            local box = Instance.new("BoxHandleAdornment")
-            box.Name = plr.Name .. "_Box"
-            box.Adornee = hrp
-            box.Size = Vector3.new(4, 5, 2)
-            box.Color3 = Color3.fromRGB(255, 255, 255)
-            box.Transparency = 0.5
-            box.AlwaysOnTop = true
-            box.ZIndex = 5
-            box.Parent = ESPFolder
+            local highlight = Instance.new("Highlight")
+            highlight.Name = plr.Name .. "_Highlight"
+            highlight.Adornee = char
+            highlight.FillColor = Color3.fromRGB(255, 255, 255)
+            highlight.FillTransparency = 0.7
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlight.OutlineTransparency = 0
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.Parent = ESPFolder
+            table.insert(ESPObjects[plr.Name], highlight)
         end
         
         if getgenv().NameESPEnabled then
-            local bill = Instance.new("BillboardGui")
-            bill.Name = plr.Name .. "_Name"
-            bill.Adornee = head
-            bill.Size = UDim2.new(0, 100, 0, 40)
-            bill.StudsOffset = Vector3.new(0, 2, 0)
-            bill.AlwaysOnTop = true
-            bill.Parent = ESPFolder
-            
-            local name = Instance.new("TextLabel", bill)
-            name.Size = UDim2.new(1, 0, 0.5, 0)
-            name.BackgroundTransparency = 1
-            name.TextColor3 = Color3.fromRGB(255, 255, 255)
-            name.TextStrokeTransparency = 0
-            name.Font = Enum.Font.GothamBold
-            name.TextScaled = true
-            name.Text = plr.DisplayName
-            
-            local health = Instance.new("TextLabel", bill)
-            health.Size = UDim2.new(1, 0, 0.5, 0)
-            health.Position = UDim2.new(0, 0, 0.5, 0)
-            health.BackgroundTransparency = 1
-            health.TextColor3 = Color3.fromRGB(0, 255, 0)
-            health.TextStrokeTransparency = 0
-            health.Font = Enum.Font.GothamBold
-            health.TextScaled = true
-            
-            Connections[plr.Name .. "_Health"] = RunService.Heartbeat:Connect(function()
-                if humanoid and humanoid.Parent then
-                    health.Text = math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth)
+            local head = char:FindFirstChild("Head")
+            if head then
+                local bill = Instance.new("BillboardGui")
+                bill.Name = plr.Name .. "_Name"
+                bill.Adornee = head
+                bill.Size = UDim2.new(0, 150, 0, 50)
+                bill.StudsOffset = Vector3.new(0, 2.5, 0)
+                bill.AlwaysOnTop = true
+                bill.Parent = ESPFolder
+                table.insert(ESPObjects[plr.Name], bill)
+                
+                local nameLabel = Instance.new("TextLabel", bill)
+                nameLabel.Name = "NameLabel"
+                nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                nameLabel.TextStrokeTransparency = 0
+                nameLabel.Font = Enum.Font.GothamBold
+                nameLabel.TextScaled = true
+                nameLabel.Text = plr.DisplayName
+                
+                local healthLabel = Instance.new("TextLabel", bill)
+                healthLabel.Name = "HealthLabel"
+                healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
+                healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
+                healthLabel.BackgroundTransparency = 1
+                healthLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+                healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                healthLabel.TextStrokeTransparency = 0
+                healthLabel.Font = Enum.Font.GothamBold
+                healthLabel.TextScaled = true
+                healthLabel.Text = "100/100"
+                
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid then
+                    Connections[plr.Name .. "_Health"] = humanoid.HealthChanged:Connect(function(health)
+                        healthLabel.Text = math.floor(health) .. "/" .. math.floor(humanoid.MaxHealth)
+                        local ratio = health / humanoid.MaxHealth
+                        healthLabel.TextColor3 = Color3.fromRGB(255 * (1 - ratio), 255 * ratio, 0)
+                    end)
                 end
-            end)
+            end
         end
         
         if getgenv().SkeletonESPEnabled then
+            local function GetPart(name)
+                return char:FindFirstChild(name)
+            end
+            
             local bones = {
                 {"Head", "UpperTorso"},
                 {"UpperTorso", "LowerTorso"},
@@ -701,78 +598,103 @@ local function CreateESP(plr)
             }
             
             for i, bone in pairs(bones) do
-                local part0 = char:FindFirstChild(bone[1])
-                local part1 = char:FindFirstChild(bone[2])
+                local part0 = GetPart(bone[1])
+                local part1 = GetPart(bone[2])
                 
                 if part0 and part1 then
+                    local a0 = Instance.new("Attachment")
+                    a0.Name = "BoneA0_" .. i
+                    a0.Parent = part0
+                    table.insert(ESPObjects[plr.Name], a0)
+                    
+                    local a1 = Instance.new("Attachment")
+                    a1.Name = "BoneA1_" .. i
+                    a1.Parent = part1
+                    table.insert(ESPObjects[plr.Name], a1)
+                    
                     local beam = Instance.new("Beam")
                     beam.Name = plr.Name .. "_Bone_" .. i
-                    beam.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
-                    beam.Width0 = 0.1
-                    beam.Width1 = 0.1
-                    beam.FaceCamera = true
-                    beam.Parent = ESPFolder
-                    
-                    local a0 = Instance.new("Attachment", part0)
-                    local a1 = Instance.new("Attachment", part1)
                     beam.Attachment0 = a0
                     beam.Attachment1 = a1
+                    beam.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+                    beam.Width0 = 0.15
+                    beam.Width1 = 0.15
+                    beam.FaceCamera = true
+                    beam.Segments = 1
+                    beam.Parent = ESPFolder
+                    table.insert(ESPObjects[plr.Name], beam)
                 end
             end
         end
-        
-        humanoid.Died:Connect(function()
-            for _, obj in pairs(ESPFolder:GetChildren()) do
-                if obj.Name:find(plr.Name) then
-                    obj:Destroy()
-                end
-            end
-            if Connections[plr.Name .. "_Health"] then
-                Connections[plr.Name .. "_Health"]:Disconnect()
-            end
-        end)
     end
     
-    if plr.Character then Setup(plr.Character) end
-    plr.CharacterAdded:Connect(Setup)
+    if plr.Character then
+        Setup(plr.Character)
+    end
+    
+    Connections[plr.Name .. "_CharAdded"] = plr.CharacterAdded:Connect(function(char)
+        Setup(char)
+    end)
 end
 
-local function ClearESP()
-    ESPFolder:ClearAllChildren()
-    for name, conn in pairs(Connections) do
-        if name:find("_Health") then
-            conn:Disconnect()
-            Connections[name] = nil
+local function RemoveESP(plr)
+    if ESPObjects[plr.Name] then
+        for _, obj in pairs(ESPObjects[plr.Name]) do
+            pcall(function() obj:Destroy() end)
         end
+        ESPObjects[plr.Name] = nil
+    end
+    
+    if Connections[plr.Name .. "_Health"] then
+        Connections[plr.Name .. "_Health"]:Disconnect()
+        Connections[plr.Name .. "_Health"] = nil
+    end
+    
+    if Connections[plr.Name .. "_CharAdded"] then
+        Connections[plr.Name .. "_CharAdded"]:Disconnect()
+        Connections[plr.Name .. "_CharAdded"] = nil
     end
 end
 
-local function RefreshESP()
-    ClearESP()
+local function RefreshAllESP()
+    for _, plr in pairs(Players:GetPlayers()) do
+        RemoveESP(plr)
+    end
+    
     if getgenv().BoxESPEnabled or getgenv().NameESPEnabled or getgenv().SkeletonESPEnabled then
         for _, plr in pairs(Players:GetPlayers()) do
-            CreateESP(plr)
+            CreateHighlight(plr)
         end
     end
 end
+
+Players.PlayerAdded:Connect(function(plr)
+    if getgenv().BoxESPEnabled or getgenv().NameESPEnabled or getgenv().SkeletonESPEnabled then
+        CreateHighlight(plr)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    RemoveESP(plr)
+end)
 
 local VisualsLeft = Tabs.Visuals:AddLeftGroupbox("Player ESP", "users")
 
 VisualsLeft:AddToggle("BoxESP", {
-    Text = "Box ESP",
+    Text = "Box ESP (Highlight)",
     Default = false,
     Callback = function(Value)
         getgenv().BoxESPEnabled = Value
-        RefreshESP()
+        RefreshAllESP()
     end
 })
 
 VisualsLeft:AddToggle("NameESP", {
-    Text = "Name ESP",
+    Text = "Name & Health ESP",
     Default = false,
     Callback = function(Value)
         getgenv().NameESPEnabled = Value
-        RefreshESP()
+        RefreshAllESP()
     end
 })
 
@@ -781,60 +703,44 @@ VisualsLeft:AddToggle("SkeletonESP", {
     Default = false,
     Callback = function(Value)
         getgenv().SkeletonESPEnabled = Value
-        RefreshESP()
+        RefreshAllESP()
     end
 })
 
-Players.PlayerAdded:Connect(function(plr)
-    if getgenv().BoxESPEnabled or getgenv().NameESPEnabled or getgenv().SkeletonESPEnabled then
-        CreateESP(plr)
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(plr)
-    for _, obj in pairs(ESPFolder:GetChildren()) do
-        if obj.Name:find(plr.Name) then
-            obj:Destroy()
-        end
-    end
-end)
-
 local VisualsRight = Tabs.Visuals:AddRightGroupbox("Ball Visuals", "target")
-
-local tracerLine = nil
 
 VisualsRight:AddToggle("BallTracer", {
     Text = "Ball Tracer",
     Default = false,
     Callback = function(Value)
         if Value then
-            tracerLine = Drawing.new("Line")
-            tracerLine.Visible = true
-            tracerLine.Color = Color3.fromRGB(255, 0, 0)
-            tracerLine.Thickness = 2
-            tracerLine.Transparency = 1
+            TracerLine = Drawing.new("Line")
+            TracerLine.Visible = false
+            TracerLine.Color = Color3.fromRGB(255, 0, 0)
+            TracerLine.Thickness = 2
+            TracerLine.Transparency = 1
             
             Connections["BallTracer"] = RunService.RenderStepped:Connect(function()
                 local Ball = GetBall()
-                if Ball and tracerLine then
+                if Ball and TracerLine then
                     local Camera = workspace.CurrentCamera
                     local screenPos, onScreen = Camera:WorldToViewportPoint(Ball.Position)
                     
                     if onScreen then
-                        tracerLine.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                        tracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
-                        tracerLine.Visible = true
+                        TracerLine.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                        TracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
+                        TracerLine.Visible = true
                     else
-                        tracerLine.Visible = false
+                        TracerLine.Visible = false
                     end
-                elseif tracerLine then
-                    tracerLine.Visible = false
+                elseif TracerLine then
+                    TracerLine.Visible = false
                 end
             end)
         else
-            if tracerLine then
-                tracerLine:Remove()
-                tracerLine = nil
+            if TracerLine then
+                TracerLine:Remove()
+                TracerLine = nil
             end
             if Connections["BallTracer"] then
                 Connections["BallTracer"]:Disconnect()
@@ -853,20 +759,24 @@ VisualsRight:AddToggle("BallTrail", {
                 local Ball = GetBall()
                 if Ball and not Ball:FindFirstChild("InvictusTrail") then
                     local a0 = Instance.new("Attachment", Ball)
+                    a0.Name = "TrailA0"
                     a0.Position = Vector3.new(0, 0.5, 0)
+                    
                     local a1 = Instance.new("Attachment", Ball)
+                    a1.Name = "TrailA1"
                     a1.Position = Vector3.new(0, -0.5, 0)
                     
                     local trail = Instance.new("Trail", Ball)
                     trail.Name = "InvictusTrail"
                     trail.Attachment0 = a0
                     trail.Attachment1 = a1
-                    trail.Lifetime = 0.3
+                    trail.Lifetime = 0.5
                     trail.MinLength = 0.1
                     trail.FaceCamera = true
                     trail.Color = ColorSequence.new({
                         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-                        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 0)),
+                        ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 255, 0)),
+                        ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0, 255, 0)),
                         ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 255))
                     })
                 end
@@ -879,9 +789,40 @@ VisualsRight:AddToggle("BallTrail", {
             for _, Ball in pairs(workspace.Balls:GetChildren()) do
                 local trail = Ball:FindFirstChild("InvictusTrail")
                 if trail then trail:Destroy() end
-                for _, att in pairs(Ball:GetChildren()) do
-                    if att:IsA("Attachment") then att:Destroy() end
+                local a0 = Ball:FindFirstChild("TrailA0")
+                if a0 then a0:Destroy() end
+                local a1 = Ball:FindFirstChild("TrailA1")
+                if a1 then a1:Destroy() end
+            end
+        end
+    end
+})
+
+VisualsRight:AddToggle("BallHighlight", {
+    Text = "Ball Highlight",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            Connections["BallHighlight"] = RunService.RenderStepped:Connect(function()
+                local Ball = GetBall()
+                if Ball and not Ball:FindFirstChild("InvictusHighlight") then
+                    local hl = Instance.new("Highlight", Ball)
+                    hl.Name = "InvictusHighlight"
+                    hl.FillColor = Color3.fromRGB(255, 0, 0)
+                    hl.FillTransparency = 0.5
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.OutlineTransparency = 0
+                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                 end
+            end)
+        else
+            if Connections["BallHighlight"] then
+                Connections["BallHighlight"]:Disconnect()
+                Connections["BallHighlight"] = nil
+            end
+            for _, Ball in pairs(workspace.Balls:GetChildren()) do
+                local hl = Ball:FindFirstChild("InvictusHighlight")
+                if hl then hl:Destroy() end
             end
         end
     end
@@ -935,6 +876,26 @@ WorldLeft:AddToggle("ViewBall", {
     end
 })
 
+WorldLeft:AddToggle("Fullbright", {
+    Text = "Fullbright",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            Lighting.Brightness = 2
+            Lighting.ClockTime = 14
+            Lighting.FogEnd = 100000
+            Lighting.GlobalShadows = false
+            Lighting.Ambient = Color3.fromRGB(178, 178, 178)
+        else
+            Lighting.Brightness = 1
+            Lighting.ClockTime = 14
+            Lighting.FogEnd = 100000
+            Lighting.GlobalShadows = true
+            Lighting.Ambient = Color3.fromRGB(0, 0, 0)
+        end
+    end
+})
+
 local MenuGroup = Tabs.Settings:AddLeftGroupbox("Menu", "sliders")
 
 MenuGroup:AddToggle("KeybindMenu", {
@@ -960,15 +921,24 @@ MenuGroup:AddButton({
 })
 
 MenuGroup:AddButton({
-    Text = "Unload",
+    Text = "Unload Script",
     Func = function()
         for _, conn in pairs(Connections) do
             if typeof(conn) == "RBXScriptConnection" then
-                conn:Disconnect()
+                pcall(function() conn:Disconnect() end)
             end
         end
-        ESPFolder:Destroy()
-        if tracerLine then tracerLine:Remove() end
+        
+        for _, plr in pairs(Players:GetPlayers()) do
+            RemoveESP(plr)
+        end
+        
+        pcall(function() ESPFolder:Destroy() end)
+        
+        if TracerLine then
+            pcall(function() TracerLine:Remove() end)
+        end
+        
         Library:Unload()
         _G.InvictusLoaded = false
     end
@@ -988,6 +958,6 @@ SaveManager:LoadAutoloadConfig()
 
 Library:Notify({
     Title = "Blade Ball - Invictus",
-    Description = "Loaded! Developer: Entropy\ndiscord.gg/nbPHzKzafN",
+    Description = "Loaded successfully!\nDeveloper: Entropy\ndiscord.gg/nbPHzKzafN",
     Time = 5
 })
