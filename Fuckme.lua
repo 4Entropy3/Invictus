@@ -30,22 +30,31 @@ local BallConnection = nil
 local AutoParrySettings = {
     AutoParry = true,
     PingBased = true,
+    DistanceHit = 0.5,
     Offset = 0,
     AutoCurve = false,
     AutoCurveStyle = "Upwards",
+    CurveAnti = false,
     RandomizeDistance = false,
-    RandomizeMin = 0.4,
-    RandomizeMax = 0.6,
+    RandomizeMin = 8,
+    RandomizeMax = 15,
     Rainbow = false,
     RandomCurveStyles = false,
+    CurveAntiV2 = false,
     AutoSpam = false,
     CircleRainbow = false,
-    DistanceHit = 0.55,
+    StandHit = 10,
+    JumpHit = 0.5,
     RainbowAmbient = false,
     RainbowFog = false,
     ManualSpam = false,
     LookAt = false,
     LookAtMethod = "Player CFrame"
+}
+
+local BackupSettings = {
+    BackUpStanHit = 10,
+    BackUpJumpHit = 0.5
 }
 
 local UtilitySettings = {
@@ -59,8 +68,12 @@ local SpamSettings = {
     PCSpam = false,
     KeyBind = Enum.KeyCode.E,
     SpamSpeed = 2,
+    Legitize = false,
     SpamLoops = "Single",
-    LoopType = "Old"
+    SpeedCheck = false,
+    BallSpeed = 0,
+    LoopType = "Old",
+    SemiBlatant = false
 }
 
 local ClashSettings = {
@@ -72,22 +85,26 @@ local ClashSettings = {
     DynamicAddedDistance = 10
 }
 
-local VisualBall = false
-local VisualClash = false
-local VisualDistance = false
-local VisualCircleBall = false
-local VisualCircleClash = false
-local VisualCircleDistance = false
+local VisualBall = true
+local VisualClash = true
+local VisualDistance = true
+local VisualCircleBall = true
+local VisualCircleClash = true
+local VisualCircleDistance = true
 local DistanceToHitValue = 10
+local DistanceToHitBackup = 10
 local AutoRageEnabled = false
 local VisualizerShape = "Ball"
 local VisualizerColor = Color3.fromRGB(255, 255, 255)
 local CircleVisualizerColor = Color3.fromRGB(255, 255, 255)
 local VisualizerTransparency = 0
-local VisualizerMaterial = nil
+local VisualizerMaterial = "ForceField"
 local CircleHeight = 0.5
 local CurveStyleBackup = "Upwards"
 
+local IsTargeted = false
+local IsJumping = false
+local CurveReady = true
 local ManualSpamEnabled = false
 local PCSpamActive = false
 local AutoSpamActive = false
@@ -154,10 +171,20 @@ Toggles.PingBased:OnChanged(function()
     AutoParrySettings.PingBased = Toggles.PingBased.Value
 end)
 
-CombatGroup:AddToggle("RandomizeDistance", {
-    Text = "Randomize Timing",
+CombatGroup:AddToggle("BetaAutoParry", {
+    Text = "Beta Auto Parry",
     Default = false,
-    Tooltip = "Randomizes the parry timing",
+    Tooltip = "Resistant to curves but can sometimes miscalculate",
+})
+
+Toggles.BetaAutoParry:OnChanged(function()
+    AutoParrySettings.CurveAnti = Toggles.BetaAutoParry.Value
+end)
+
+CombatGroup:AddToggle("RandomizeDistance", {
+    Text = "Randomize Distance To Hit",
+    Default = false,
+    Tooltip = "Randomizes the distance to hit value",
 })
 
 Toggles.RandomizeDistance:OnChanged(function()
@@ -267,24 +294,30 @@ OtherGroup:AddButton({
 local ParryAdjGroup = Tabs.Adjustments:AddLeftGroupbox("Auto Parry Adjustments")
 
 ParryAdjGroup:AddSlider("DistanceToHit", {
-    Text = "Parry Timing",
-    Default = 0.55,
-    Min = 0.3,
-    Max = 1,
-    Rounding = 2,
-    Tooltip = "When to parry (lower = closer to you)",
+    Text = "Distance To Hit",
+    Default = 10,
+    Min = 5,
+    Max = 25,
+    Rounding = 1,
+    Tooltip = "Distance at which auto parry activates",
 })
 
 Options.DistanceToHit:OnChanged(function()
-    AutoParrySettings.DistanceHit = Options.DistanceToHit.Value
+    local value = Options.DistanceToHit.Value
+    AutoParrySettings.JumpHit = tonumber(value * 5 / 100)
+    AutoParrySettings.StandHit = tonumber(value)
+    BackupSettings.BackUpJumpHit = tonumber(value * 5 / 100)
+    BackupSettings.BackUpStanHit = tonumber(value)
+    DistanceToHitValue = value
+    DistanceToHitBackup = value
 end)
 
 ParryAdjGroup:AddSlider("PingOffset", {
     Text = "Ping Based Offset",
     Default = 0,
     Min = 0,
-    Max = 0.3,
-    Rounding = 2,
+    Max = 15,
+    Rounding = 1,
     Tooltip = "Offset for ping based calculations",
 })
 
@@ -293,12 +326,12 @@ Options.PingOffset:OnChanged(function()
 end)
 
 ParryAdjGroup:AddSlider("RandomMin", {
-    Text = "Minimum Random Timing",
-    Default = 0.4,
-    Min = 0.3,
-    Max = 0.8,
-    Rounding = 2,
-    Tooltip = "Minimum value for randomize timing",
+    Text = "Minimum Random Value",
+    Default = 8,
+    Min = 5,
+    Max = 25,
+    Rounding = 1,
+    Tooltip = "Minimum value for randomize distance",
 })
 
 Options.RandomMin:OnChanged(function()
@@ -306,12 +339,12 @@ Options.RandomMin:OnChanged(function()
 end)
 
 ParryAdjGroup:AddSlider("RandomMax", {
-    Text = "Maximum Random Timing",
-    Default = 0.6,
-    Min = 0.4,
-    Max = 1,
-    Rounding = 2,
-    Tooltip = "Maximum value for randomize timing",
+    Text = "Maximum Random Value",
+    Default = 15,
+    Min = 5,
+    Max = 25,
+    Rounding = 1,
+    Tooltip = "Maximum value for randomize distance",
 })
 
 Options.RandomMax:OnChanged(function()
@@ -385,6 +418,16 @@ end)
 
 local SpamAdjGroup = Tabs.Adjustments:AddLeftGroupbox("Spam Adjustments")
 
+SpamAdjGroup:AddToggle("SpeedCheck", {
+    Text = "Ball Speed Check",
+    Default = false,
+    Tooltip = "Stops spam when ball is not moving",
+})
+
+Toggles.SpeedCheck:OnChanged(function()
+    SpamSettings.SpeedCheck = Toggles.SpeedCheck.Value
+end)
+
 SpamAdjGroup:AddDropdown("SpamSpeed", {
     Values = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"},
     Default = "2",
@@ -425,6 +468,16 @@ Options.SpamLoops:OnChanged(function()
     SpamSettings.SpamLoops = Options.SpamLoops.Value
 end)
 
+SpamAdjGroup:AddToggle("LegitSpam", {
+    Text = "Legit Spam",
+    Default = false,
+    Tooltip = "Makes the spam more legit",
+})
+
+Toggles.LegitSpam:OnChanged(function()
+    SpamSettings.Legitize = Toggles.LegitSpam.Value
+end)
+
 local VisualBallGroup = Tabs.Adjustments:AddRightGroupbox("Ball Visualizer Settings")
 
 VisualBallGroup:AddDropdown("VisualizerShape", {
@@ -438,7 +491,7 @@ Options.VisualizerShape:OnChanged(function()
 end)
 
 VisualBallGroup:AddDropdown("VisualizerMaterial", {
-    Values = {"Plastic", "Concrete", "Grass", "Metal", "WoodPlanks", "ForceField", "Glass", "Neon", "SmoothPlastic"},
+    Values = {"Plastic", "Concrete", "Grass", "Metal", "WoodPlanks", "ForceField", "Glass", "Neon", "SmoothPlastic", "Fabric", "Brick", "Foil", "Snow", "Slate", "Rock", "Salt", "Pebble", "Pavement", "Marble", "Ice", "Granite", "CrackedLava", "DiamondPlate", "Limestone", "Mud", "Sand"},
     Default = "ForceField",
     Text = "Visualizer Material",
 })
@@ -583,7 +636,7 @@ local VisBallGroup = Tabs.Visuals:AddLeftGroupbox("Ball Visualizers")
 
 VisBallGroup:AddToggle("VisDistanceToHit", {
     Text = "Distance To Hit Visualizer",
-    Default = false,
+    Default = true,
 })
 
 Toggles.VisDistanceToHit:OnChanged(function()
@@ -592,7 +645,7 @@ end)
 
 VisBallGroup:AddToggle("VisClashRange", {
     Text = "Clash Range Visualizer",
-    Default = false,
+    Default = true,
 })
 
 Toggles.VisClashRange:OnChanged(function()
@@ -601,7 +654,7 @@ end)
 
 VisBallGroup:AddToggle("VisBallDistance", {
     Text = "Ball Distance Visualizer",
-    Default = false,
+    Default = true,
 })
 
 Toggles.VisBallDistance:OnChanged(function()
@@ -612,7 +665,7 @@ local VisCircleGroup = Tabs.Visuals:AddRightGroupbox("Circle Visualizers")
 
 VisCircleGroup:AddToggle("VisCircleDistance", {
     Text = "Distance To Hit Circle",
-    Default = false,
+    Default = true,
 })
 
 Toggles.VisCircleDistance:OnChanged(function()
@@ -621,7 +674,7 @@ end)
 
 VisCircleGroup:AddToggle("VisCircleClash", {
     Text = "Clash Range Circle",
-    Default = false,
+    Default = true,
 })
 
 Toggles.VisCircleClash:OnChanged(function()
@@ -630,7 +683,7 @@ end)
 
 VisCircleGroup:AddToggle("VisCircleBallDist", {
     Text = "Ball Distance Circle",
-    Default = false,
+    Default = true,
 })
 
 Toggles.VisCircleBallDist:OnChanged(function()
@@ -862,10 +915,12 @@ local function GetBall()
 end
 
 local function GetBallSpeed(ball)
-    if ball and ball:FindFirstChild("zoomies") then
-        return ball.zoomies.VectorVelocity.Magnitude
-    elseif ball then
-        return ball.AssemblyLinearVelocity.Magnitude
+    if ball then
+        if ball:FindFirstChild("zoomies") then
+            return ball.zoomies.VectorVelocity.Magnitude
+        else
+            return ball.AssemblyLinearVelocity.Magnitude
+        end
     end
     return 0
 end
@@ -875,6 +930,22 @@ local function Parry()
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
 end
 
+local function FireCurve()
+    if AutoParrySettings.AutoCurveStyle == "Upwards" then
+        local args = {0.5, CFrame.new(-288.835, 28.226, -142.125, -0.9899, 0.1391, 0.0245, 0, 0.1736, -0.9848, -0.1412, -0.9749, -0.1719), {["Dogman123456ho"] = Vector3.new()}, {357, 66}}
+        pcall(function() ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ParryAttempt"):FireServer(unpack(args)) end)
+    elseif AutoParrySettings.AutoCurveStyle == "Backwards" then
+        local args = {0.5, CFrame.new(-377.111, 28.594, -193.371, 0.7151, 0.1741, 0.6769, 0, 0.9684, -0.2491, -0.6989, 0.1781, 0.6925), {["Dogman123456ho"] = Vector3.new()}, {306, 92}}
+        pcall(function() ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ParryAttempt"):FireServer(unpack(args)) end)
+    elseif AutoParrySettings.AutoCurveStyle == "Left" then
+        local args = {0.5, CFrame.new(-274.416, 28.725, 55.725, 0.0328, -0.0118, 0.9993, 0, 0.9999, 0.0118, -0.9994, -0.0003, 0.0328), {["Dogman123456ho"] = Vector3.new()}, {571, 164}}
+        pcall(function() ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ParryAttempt"):FireServer(unpack(args)) end)
+    elseif AutoParrySettings.AutoCurveStyle == "Right" then
+        local args = {0.5, CFrame.new(-186.265, 28.679, -144.889, 0.7096, 0.0559, 0.7023, 0, 0.9968, -0.0794, -0.7045, 0.0563, 0.7074), {["Dogman123456ho"] = Vector3.new()}, {372, 62}}
+        pcall(function() ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ParryAttempt"):FireServer(unpack(args)) end)
+    end
+end
+
 local function SpamParry()
     for _ = 1, SpamSettings.SpamSpeed do
         Parry()
@@ -882,28 +953,12 @@ local function SpamParry()
 end
 
 local function ExecuteSpam()
-    if SpamSettings.SpamSpeed < 2 then
-        Parry()
-    else
-        SpamParry()
-    end
-end
-
-local function FireCurve()
-    local curveArgs
-    if AutoParrySettings.AutoCurveStyle == "Upwards" then
-        curveArgs = {0.5, Workspace.CurrentCamera.CFrame * CFrame.Angles(math.rad(-80), 0, 0), {}, {0, 0}}
-    elseif AutoParrySettings.AutoCurveStyle == "Backwards" then
-        curveArgs = {0.5, Workspace.CurrentCamera.CFrame * CFrame.Angles(math.rad(45), 0, 0), {}, {0, 0}}
-    elseif AutoParrySettings.AutoCurveStyle == "Left" then
-        curveArgs = {0.5, Workspace.CurrentCamera.CFrame * CFrame.Angles(0, math.rad(90), 0), {}, {0, 0}}
-    elseif AutoParrySettings.AutoCurveStyle == "Right" then
-        curveArgs = {0.5, Workspace.CurrentCamera.CFrame * CFrame.Angles(0, math.rad(-90), 0), {}, {0, 0}}
-    end
-    if curveArgs then
-        pcall(function()
-            ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ParryAttempt"):FireServer(unpack(curveArgs))
-        end)
+    if SpamSettings.BallSpeed ~= 0 or not SpamSettings.SpeedCheck then
+        if SpamSettings.SpamSpeed < 2 then
+            Parry()
+        else
+            SpamParry()
+        end
     end
 end
 
@@ -946,24 +1001,6 @@ local function GetClosestEnemy()
     return closest
 end
 
-local slashEffects = {"particleemitter"}
-
-local function RemoveSlashEffect(descendant)
-    if not UtilitySettings.NoSlash then return end
-    for _, effectName in pairs(slashEffects) do
-        if string.find(string.lower(descendant.ClassName), effectName) then
-            pcall(function()
-                descendant.Lifetime = NumberRange.new(0)
-            end)
-            break
-        end
-    end
-end
-
-task.spawn(function()
-    Workspace.DescendantAdded:Connect(RemoveSlashEffect)
-end)
-
 local function ClaimPlaytimeRewards()
     for i = 1, 6 do
         pcall(function()
@@ -984,6 +1021,24 @@ local function OpenSwordCrate()
     end)
 end
 
+local slashEffects = {"particleemitter"}
+
+local function RemoveSlashEffect(descendant)
+    if not UtilitySettings.NoSlash then return end
+    for _, effectName in pairs(slashEffects) do
+        if string.find(string.lower(descendant.ClassName), effectName) then
+            pcall(function()
+                descendant.Lifetime = NumberRange.new(0)
+            end)
+            break
+        end
+    end
+end
+
+task.spawn(function()
+    Workspace.DescendantAdded:Connect(RemoveSlashEffect)
+end)
+
 local function ResetBallConnection()
     if BallConnection then
         BallConnection:Disconnect()
@@ -995,38 +1050,37 @@ BallsFolder.ChildAdded:Connect(function()
     local ball = GetBall()
     if not ball then return end
     ResetBallConnection()
+    Parried = false
+    IsTargeted = false
     BallConnection = ball:GetAttributeChangedSignal("target"):Connect(function()
         Parried = false
+        if ball:GetAttribute("target") == LocalPlayer.Name then
+            IsTargeted = true
+        else
+            IsTargeted = false
+        end
     end)
 end)
 
-RunService.PreSimulation:Connect(function()
-    if not AutoParrySettings.AutoParry then return end
-    
+RunService.PostSimulation:Connect(function()
     local ball = GetBall()
-    local hrp = GetHumanoidRootPart()
-    
-    if not ball or not hrp then return end
-    
-    local speed = GetBallSpeed(ball)
-    local distance = (hrp.Position - ball.Position).Magnitude
-    
-    local timing = AutoParrySettings.DistanceHit
-    if AutoParrySettings.RandomizeDistance then
-        timing = AutoParrySettings.RandomizeMin + math.random() * (AutoParrySettings.RandomizeMax - AutoParrySettings.RandomizeMin)
+    if ball then
+        SpamSettings.BallSpeed = GetBallSpeed(ball)
     end
-    
-    if AutoParrySettings.PingBased then
-        local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() / 1000
-        timing = timing + ping + AutoParrySettings.Offset
-    end
-    
-    if ball:GetAttribute("target") == LocalPlayer.Name and not Parried and distance / speed <= timing then
-        if AutoParrySettings.AutoCurve then
-            FireCurve()
-        end
-        Parry()
-        Parried = true
+end)
+
+RunService.PostSimulation:Connect(function()
+    if AutoParrySettings.AutoParry and AutoParrySettings.RandomizeDistance then
+        local min = AutoParrySettings.RandomizeMin
+        local max = AutoParrySettings.RandomizeMax
+        local randomVal = math.random(min, max)
+        AutoParrySettings.JumpHit = tonumber(randomVal * 5 / 100)
+        AutoParrySettings.StandHit = tonumber(randomVal)
+        DistanceToHitValue = tonumber(randomVal)
+    elseif AutoParrySettings.AutoParry then
+        AutoParrySettings.JumpHit = BackupSettings.BackUpJumpHit
+        AutoParrySettings.StandHit = BackupSettings.BackUpStanHit
+        DistanceToHitValue = DistanceToHitBackup
     end
 end)
 
@@ -1059,6 +1113,14 @@ RunService.PostSimulation:Connect(function()
 end)
 
 RunService.PreRender:Connect(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        pcall(function()
+            IsJumping = LocalPlayer.Character.Humanoid:GetState() == Enum.HumanoidStateType.Freefall
+        end)
+    end
+end)
+
+RunService.PreRender:Connect(function()
     local ball = GetBall()
     if ball and AutoParrySettings.LookAt then
         local hrp = GetHumanoidRootPart()
@@ -1070,6 +1132,64 @@ RunService.PreRender:Connect(function()
             end
         end
     end
+end)
+
+BallsFolder.ChildAdded:Connect(function(ball)
+    if not ball:GetAttribute("realBall") then return end
+    
+    local lastPosition = ball.CFrame.Position
+    local lastTime = time()
+    
+    ball:GetPropertyChangedSignal("Position"):Connect(function()
+        if not AutoParrySettings.AutoParry then return end
+        if AutoRageEnabled then return end
+        
+        local currentBall = GetBall()
+        if not currentBall then return end
+        
+        local hrp = GetHumanoidRootPart()
+        if not hrp then return end
+        
+        local speed = GetBallSpeed(currentBall)
+        local travelDistance = (lastPosition - currentBall.CFrame.Position).Magnitude
+        
+        if IsJumping and AutoParrySettings.CurveAnti then
+            AutoParrySettings.DistanceHit = AutoParrySettings.JumpHit
+            travelDistance = speed
+        else
+            AutoParrySettings.DistanceHit = AutoParrySettings.StandHit
+        end
+        
+        if AutoParrySettings.CurveAnti then
+            speed = travelDistance
+        end
+        
+        local ballPos = currentBall.Position
+        local playerPos = LocalPlayer.Character.PrimaryPart.Position
+        local distance = LocalPlayer:DistanceFromCharacter(ballPos)
+        local pingOffset = currentBall.AssemblyLinearVelocity:Dot((playerPos - ballPos).Unit) * (game.Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 1000)
+        
+        if AutoParrySettings.PingBased then
+            distance = distance - pingOffset - AutoParrySettings.Offset
+        end
+        
+        local isTarget = currentBall:GetAttribute("target") == LocalPlayer.Name
+        
+        if speed ~= 0 then
+            if distance / speed <= AutoParrySettings.DistanceHit and isTarget and not Parried then
+                Parried = true
+                if AutoParrySettings.AutoCurve then
+                    FireCurve()
+                end
+                Parry()
+            end
+            
+            if time() - lastTime >= 0.016666666666666666 then
+                lastTime = time()
+                lastPosition = currentBall.CFrame.Position
+            end
+        end
+    end)
 end)
 
 RunService.PostSimulation:Connect(function()
