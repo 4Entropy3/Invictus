@@ -1,1 +1,1380 @@
-repeat task.wait()until game:IsLoaded()local a="https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"local b=loadstring(game:HttpGet(a.."Library.lua"))()local c=loadstring(game:HttpGet(a.."addons/ThemeManager.lua"))()local d=loadstring(game:HttpGet(a.."addons/SaveManager.lua"))()local e=b.Options local f=b.Toggles local g=game:GetService("Players")local h=game:GetService("RunService")local i=game:GetService("Lighting")local j=game:GetService("ReplicatedStorage")local k=game:GetService("UserInputService")local l=game:GetService("Stats")local m=game:GetService("Debris")local n=g.LocalPlayer local o=workspace:WaitForChild("Balls",999999)local p=workspace:FindFirstChild("Alive")or workspace:WaitForChild("Alive")local q=workspace.Runtime local r=i.Ambient local s=i.FogColor local t=i.ClockTime local u={}local v={}local w=nil local x={autoParry=true,pingBased=true,distanceHit=10,offset=0,curveMode=1,playAnimation=false,divisorMultiplier=1.1,accuracy=50,parried=false,parries=0,firstParryDone=false,tornadoTime=tick(),lerpRadians=0,lastWarping=tick(),curving=tick(),lookAt=false,lookType="Camera",rainbow=false,circleRainbow=false,rainbowAmbient=false,rainbowFog=false,triggerbot=false,triggerbotParrying=false,triggerbotParries=0,manualSpam=false,autoSpam=false,spamRate=240,spamAccumulator=0,spamThreshold=1.5,infinityActive=false,deathslashActive=false,timeholeActive=false,slashesActive=false,slashesCount=0}local y={noSlash=false,autoClaim=false,autoSword=false,autoExplosion=false}local z={ball=true,clash=true,distance=true,circleBall=true,circleClash=true,circleDistance=true}local A={shape="Ball",material="ForceField",color=Color3.fromRGB(255,255,255),circleColor=Color3.fromRGB(255,255,255),transparency=0,circleHeight=0.5,clashDist=30}local B={"Camera","Random","Accelerated","Backwards","Slow","High"}local C=nil local D=nil if j:FindFirstChild("Controllers")then for _,E in ipairs(j.Controllers:GetChildren())do if E.Name:match("^SwordsController%s*$")then D=E end end end if n.PlayerGui:FindFirstChild("Hotbar")and n.PlayerGui.Hotbar:FindFirstChild("Block")then for _,E in next,getconnections(n.PlayerGui.Hotbar.Block.Activated)do if D and getfenv(E.Function).script==D then C=E.Function break end end end local function F(G)return#G==7 and type(G[2])=="string"and type(G[3])=="number"and typeof(G[4])=="CFrame"and type(G[5])=="table"and type(G[6])=="table"and type(G[7])=="boolean"end local function H(I)if not u[I]then if not v[getrawmetatable(I)]then v[getrawmetatable(I)]=true local J=getrawmetatable(I)setreadonly(J,false)local K=J.__index J.__index=function(I,L)if L=="FireServer"and I:IsA("RemoteEvent")or L=="InvokeServer"and I:IsA("RemoteFunction")then return function(M,...)local N={...}if F(N)and not u[I]then u[I]=N w=N[2]end return K(I,L)(M,unpack(N))end end return K(I,L)end setreadonly(J,true)end end end for _,I in pairs(j:GetChildren())do if I:IsA("RemoteEvent")or I:IsA("RemoteFunction")then H(I)end end j.ChildAdded:Connect(function(I)if I:IsA("RemoteEvent")or I:IsA("RemoteFunction")then H(I)end end)local function O()x.divisorMultiplier=0.75+(x.accuracy-1)*0.0303 end local function P()if not n.Character then return nil end local Q=nil local R=math.huge for _,S in pairs(p:GetChildren())do if S~=n.Character and S.PrimaryPart then local T=n:DistanceFromCharacter(S.PrimaryPart.Position)if T<R then R=T Q=S end end end return Q end local function U()local V=workspace.CurrentCamera local W=n.Character and n.Character:FindFirstChild("HumanoidRootPart")if not W then return V.CFrame end local X=P()local Y=X and X:FindFirstChild("HumanoidRootPart")local Z=Y and Y.Position or W.Position+V.CFrame.LookVector*100 local _a={function()return V.CFrame end,function()local aa=(Z-W.Position).Unit local ab local ac=0 repeat ab=Vector3.new(math.random(-4000,4000),math.random(-4000,4000),math.random(-4000,4000))local ad=((Z+ab)-W.Position).Unit local ae=aa:Dot(ad)ac=ac+1 until ae<0.95 or ac>10 return CFrame.new(W.Position,Z+ab)end,function()return CFrame.new(W.Position,Z+Vector3.new(0,5,0))end,function()local af=(W.Position-Z).Unit local ag=(W.Position+af*10000)+Vector3.new(0,1000,0)return CFrame.new(V.CFrame.Position,ag)end,function()return CFrame.new(W.Position,Z+Vector3.new(0,-9e18,0))end,function()return CFrame.new(W.Position,Z+Vector3.new(0,9e18,0))end}return _a[x.curveMode]()end local function ah()if x.parries>10000 or not n.Character then return end local V=workspace.CurrentCamera local ai,aj=pcall(function()return k:GetMouseLocation()end)if not ai then return end local ak={aj.X,aj.Y}local al=k.TouchEnabled and not k.MouseEnabled local am={}if p then for _,an in pairs(p:GetChildren())do if an.PrimaryPart then local ao,ap=pcall(function()return V:WorldToScreenPoint(an.PrimaryPart.Position)end)if ao then am[an.Name]=ap end end end end local aq=U()if not x.firstParryDone then for _,ar in pairs(getconnections(n.PlayerGui.Hotbar.Block.Activated))do ar:Fire()end x.firstParryDone=true return end local as if al then local at=V.ViewportSize as={at.X/2,at.Y/2}else as=ak end for au,av in pairs(u)do local aw={av[1],av[2],av[3],aq,am,as,av[7]}pcall(function()if au:IsA("RemoteEvent")then au:FireServer(unpack(aw))elseif au:IsA("RemoteFunction")then au:InvokeServer(unpack(aw))end end)end if x.parries>10000 then return end x.parries=x.parries+1 task.delay(0.5,function()if x.parries>0 then x.parries=x.parries-1 end end)end local function ax()if x.parries>10000 or not n.Character then return end if C then C()end if x.parries>10000 then return end x.parries=x.parries+1 task.delay(0.5,function()if x.parries>0 then x.parries=x.parries-1 end end)end local function ay()if not x.playAnimation then return end local az=n.Character if not az then return end local aA=az:FindFirstChildOfClass("Humanoid")local aB=aA and aA:FindFirstChildOfClass("Animator")if not aA or not aB then return end local aC=az:GetAttribute("CurrentlyEquippedSword")if not aC then return end local aD=j.Shared.SwordAPI.Collection local aE=aD.Default:FindFirstChild("GrabParry")if not aE then return end local aF=j.Shared.ReplicatedInstances.Swords.GetSword:Invoke(aC)if not aF or not aF.AnimationType then return end for _,aG in pairs(aD:GetChildren())do if aG.Name==aF.AnimationType then if aG:FindFirstChild("GrabParry")or aG:FindFirstChild("Grab")then local aH=aG:FindFirstChild("GrabParry")and"GrabParry"or"Grab"aE=aG[aH]end end end local aI=aB:LoadAnimation(aE)aI.Priority=Enum.AnimationPriority.Action4 aI:Play()end local function aJ()ay()ah()end local function aK(aL,aM,aN)return aL+(aM-aL)*aN end local function aO()local aP=nil for _,aQ in pairs(o:GetChildren())do if aQ:GetAttribute("realBall")then aQ.CanCollide=false aP=aQ break end end return aP end local function aR()local aP=aO()if not aP then return false end local aS=aP:FindFirstChild("zoomies")if not aS then return false end local aT=aS.VectorVelocity local aU=aT.Unit local aV=(n.Character.PrimaryPart.Position-aP.Position).Unit local aW=aV:Dot(aU)local aX=aT.Magnitude local aY=math.min(aX/100,40)local aZ=(aU-aT).Unit local a_=aV:Dot(aZ)local ba=aW-a_ local bb=(n.Character.PrimaryPart.Position-aP.Position).Magnitude local bc=l.Network.ServerStatsItem["Data Ping"]:GetValue()local bd=0.5-bc/1000 local be=bb/aX-bc/1000 local bf=(15-math.min(bb/1000,15))+aY local bg=math.clamp(aW,-1,1)local bh=math.rad(math.asin(bg))x.lerpRadians=aK(x.lerpRadians,bh,0.8)if aX>0 and be>bc/10 then bf=math.max(bf-15,15)end if bb<bf then return false end if ba<bd then return true end if x.lerpRadians<0.018 then x.lastWarping=tick()end if tick()-x.lastWarping<be/1.5 then return true end if tick()-x.curving<be/1.5 then return true end return aW<bd end j.Remotes.DeathBall.OnClientEvent:Connect(function(_,bi)x.deathslashActive=bi or false end)j.Remotes.InfinityBall.OnClientEvent:Connect(function(_,bi)x.infinityActive=bi or false end)pcall(function()j.Packages._Index["sleitnick_net@0.1.0"].net["RE/TimeHoleActivate"].OnClientEvent:Connect(function(...)local bj={...}local bk=bj[1]if bk==n or bk==n.Name or(bk and bk.Name==n.Name)then x.timeholeActive=true end end)j.Packages._Index["sleitnick_net@0.1.0"].net["RE/TimeHoleDeactivate"].OnClientEvent:Connect(function()x.timeholeActive=false end)j.Packages._Index["sleitnick_net@0.1.0"].net["RE/SlashesOfFuryActivate"].OnClientEvent:Connect(function(...)local bj={...}local bk=bj[1]if bk==n or bk==n.Name or(bk and bk.Name==n.Name)then x.slashesActive=true x.slashesCount=0 end end)j.Packages._Index["sleitnick_net@0.1.0"].net["RE/SlashesOfFuryEnd"].OnClientEvent:Connect(function()x.slashesActive=false x.slashesCount=0 end)end)j.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(_,bl)if bl.Parent and bl.Parent~=n.Character then if not p or bl.Parent.Parent~=p then return end end local bm=P()local aP=aO()if not aP or not bm then return end local bn=(n.Character.PrimaryPart.Position-bm.PrimaryPart.Position).Magnitude local bo=(n.Character.PrimaryPart.Position-aP.Position).Magnitude local bp=(n.Character.PrimaryPart.Position-aP.Position).Unit local bq=bp:Dot(aP.AssemblyLinearVelocity.Unit)local br=aR()if bn<15 and bo<15 and bq>-0.25 then if br then aJ()end end end)local bs=nil h.PreSimulation:Connect(function()if not x.autoParry or not n.Character or not n.Character.PrimaryPart then return end local aP=aO()if not aP then return end local aS=aP:FindFirstChild("zoomies")if not aS then return end aP:GetAttributeChangedSignal("target"):Once(function()x.parried=false end)if x.parried then return end local bt=aP:GetAttribute("target")local bu=aS.VectorVelocity local bv=(n.Character.PrimaryPart.Position-aP.Position).Magnitude local bw=l.Network.ServerStatsItem["Data Ping"]:GetValue()/10 local bx=math.clamp(bw/10,5,17)local by=bu.Magnitude local bz=math.min(math.max(by-9.5,0),650)local bA=(2.4+bz*0.002)*x.divisorMultiplier local bB=bx+math.max(by/bA,9.5)local bC=aR()if aP:FindFirstChild("AeroDynamicSlashVFX")then aP.AeroDynamicSlashVFX:Destroy()x.tornadoTime=tick()end if q:FindFirstChild("Tornado")then if tick()-x.tornadoTime<(q.Tornado:GetAttribute("TornadoTime")or 1)+0.314159 then return end end local bD=aO()if bD and bD:GetAttribute("target")==n.Name and bC then return end if aP:FindFirstChild("ComboCounter")then return end if n.Character.PrimaryPart:FindFirstChild("SingularityCape")then return end if x.infinityActive then return end if x.deathslashActive then return end if x.timeholeActive then return end if x.slashesActive then return end if bt==n.Name and bv<=bB then aJ()x.parried=true local bE=tick()repeat h.Stepped:Wait()until tick()-bE>=1 or not x.parried x.parried=false end end)local function bF(aP)if x.triggerbotParrying or x.triggerbotParries>10000 then return end if n.Character and n.Character.PrimaryPart and n.Character.PrimaryPart:FindFirstChild("SingularityCape")then return end x.triggerbotParrying=true x.triggerbotParries=x.triggerbotParries+1 aJ()task.delay(0.5,function()if x.triggerbotParries>0 then x.triggerbotParries=x.triggerbotParries-1 end end)local bG bG=aP:GetAttributeChangedSignal("target"):Once(function()x.triggerbotParrying=false if bG then bG:Disconnect()end end)task.spawn(function()local bE=tick()repeat h.Heartbeat:Wait()until tick()-bE>=1 or not x.triggerbotParrying x.triggerbotParrying=false end)end h.Heartbeat:Connect(function()if not x.triggerbot then return end if n.Character and n.Character.PrimaryPart and n.Character.PrimaryPart:FindFirstChild("SingularityCape")then return end for _,aP in pairs(o:GetChildren())do if aP:IsA("BasePart")and aP:GetAttribute("target")==n.Name then bF(aP)break end end end)h.Heartbeat:Connect(function(bH)if not x.manualSpam then return end if not n.Character or n.Character.Parent~=p then return end x.spamAccumulator=x.spamAccumulator+bH local bI=1/x.spamRate if x.spamAccumulator>=bI then x.spamAccumulator=0 ah()end end)h.PreSimulation:Connect(function()if not x.autoSpam then return end local aP=aO()if not aP then return end if x.slashesActive then return end local aS=aP:FindFirstChild("zoomies")if not aS then return end local bm=P()if not bm or not bm.PrimaryPart then return end local bw=l.Network.ServerStatsItem["Data Ping"]:GetValue()local bx=math.clamp(bw/10,1,16)local bt=aP:GetAttribute("target")local bn=(n.Character.PrimaryPart.Position-bm.PrimaryPart.Position).Magnitude local bv=(n.Character.PrimaryPart.Position-aP.Position).Magnitude local by=aS.VectorVelocity.Magnitude local bJ=bx+math.min(by/6,255)if bn>bJ or bv>bJ then return end local bK=n.Character:GetAttribute("Pulsed")if bK then return end if bt==n.Name and bn>30 and bv>30 then return end if bv<=bJ and x.parries>x.spamThreshold then ah()end end)local function bL()for bM=1,6 do pcall(function()j.Packages._Index["sleitnick_net@0.1.0"].net["RF/ClaimPlaytimeReward"]:InvokeServer(bM)end)end end local function bN()pcall(function()j.Remote.RemoteFunction:InvokeServer("PromptPurchaseCrate",workspace.Spawn.Crates.NormalExplosionCrate)end)end local function bO()pcall(function()j.Remote.RemoteFunction:InvokeServer("PromptPurchaseCrate",workspace.Spawn.Crates.NormalSwordCrate)end)end local function bP(bQ)if not y.noSlash then return end if string.find(string.lower(bQ.ClassName),"particleemitter")then pcall(function()bQ.Lifetime=NumberRange.new(0)end)end end workspace.DescendantAdded:Connect(bP)h.PreRender:Connect(function()if not x.lookAt then return end local aP=aO()if not aP then return end local bR=n.Character and n.Character:FindFirstChild("HumanoidRootPart")local V=workspace.CurrentCamera if x.lookType=="Character"and bR then local bS=Vector3.new(aP.Position.X,bR.Position.Y,aP.Position.Z)bR.CFrame=CFrame.lookAt(bR.Position,bS)elseif x.lookType=="Camera"then V.CFrame=CFrame.lookAt(V.CFrame.Position,aP.Position)end end)h.PostSimulation:Connect(function()if x.rainbowAmbient then i.Ambient=Color3.fromHSV(tick()%5/5,1,1)end if x.rainbowFog then i.FogColor=Color3.fromHSV(tick()%5/5,1,1)end end)h.PostSimulation:Connect(function()if y.autoClaim then bL()end if y.autoSword then bO()end if y.autoExplosion then bN()end end)local bT=Instance.new("Part")local bU=Instance.new("Part")local bV=Instance.new("Part")local bW=Instance.new("Part",workspace.CurrentCamera)local bX=Instance.new("CylinderHandleAdornment",game.CoreGui)local bY=Instance.new("CylinderHandleAdornment",game.CoreGui)local bZ=Instance.new("CylinderHandleAdornment",game.CoreGui)bT.CanCollide=false bU.CanCollide=false bV.CanCollide=false bT.Anchored=false bU.Anchored=false bV.Anchored=false bT.Parent=nil bU.Parent=nil bV.Parent=nil bW.Transparency=1 bW.CanCollide=false bW.Anchored=false bW.Size=Vector3.new(1,1,1)bX.Visible=false bY.Visible=false bZ.Visible=false h.PostSimulation:Connect(function()local aP=aO()local bR=n.Character and n.Character:FindFirstChild("HumanoidRootPart")if not aP or not bR then bT.Parent=nil bU.Parent=nil bV.Parent=nil bX.Visible=false bY.Visible=false bZ.Visible=false return end if not x.autoParry then return end local b_=n.Character.Humanoid.HipHeight+A.circleHeight local ca=(aP.Position-workspace.CurrentCamera.Focus.Position).Magnitude local cb=Color3.fromHSV(tick()%5/5,1,1)if z.ball then bT.Shape=A.shape bT.Material=A.material bT.Transparency=A.transparency bT.Size=Vector3.new(x.distanceHit,x.distanceHit,x.distanceHit)bT.Color=x.rainbow and cb or A.color bT.CFrame=bR.CFrame bT.Parent=bR else bT.Parent=nil end if z.clash then bU.Shape=A.shape bU.Material=A.material bU.Transparency=A.transparency bU.Size=Vector3.new(A.clashDist,A.clashDist,A.clashDist)bU.Color=x.rainbow and cb or A.color bU.CFrame=bR.CFrame bU.Parent=workspace else bU.Parent=nil end if z.distance then bV.Shape=A.shape bV.Material=A.material bV.Transparency=A.transparency bV.Size=Vector3.new(ca,ca,ca)bV.Color=x.rainbow and cb or A.color bV.CFrame=bR.CFrame bV.Parent=bR else bV.Parent=nil end if z.circleBall or z.circleClash or z.circleDistance then bW.CFrame=CFrame.new(bR.Position.X,bR.Position.Y-b_,bR.Position.Z)end local cc=x.circleRainbow and cb or A.circleColor if z.circleBall then bX.CFrame=CFrame.fromOrientation(math.rad(90),0,0)bX.Adornee=bW bX.Radius=x.distanceHit bX.InnerRadius=x.distanceHit bX.Height=b_ bX.Color3=cc bX.Visible=true else bX.Visible=false end if z.circleClash then bY.CFrame=CFrame.fromOrientation(math.rad(90),0,0)bY.Adornee=bW bY.Radius=A.clashDist bY.InnerRadius=A.clashDist bY.Height=b_ bY.Color3=cc bY.Visible=true else bY.Visible=false end if z.circleDistance then bZ.CFrame=CFrame.fromOrientation(math.rad(90),0,0)bZ.Adornee=bW bZ.Radius=ca bZ.InnerRadius=ca bZ.Height=b_ bZ.Color3=cc bZ.Visible=true else bZ.Visible=false end end)local cd=b:CreateWindow({Title="Invictus",Footer="invictus uwu",Icon=85451000785501,NotifySide="Right",ShowCustomCursor=true})local ce={Home=cd:AddTab("Home","home"),Main=cd:AddTab("Main","swords"),Spam=cd:AddTab("Spam","zap"),Visuals=cd:AddTab("Visuals","eye"),Utilities=cd:AddTab("Utilities","wrench"),World=cd:AddTab("World","globe-2"),Settings=cd:AddTab("Settings","settings")}local cf=ce.Home:AddLeftGroupbox("Welcome")cf:AddLabel("yo "..n.DisplayName.."!",true)cf:AddLabel("hope u enjoy uwu",true)cf:AddDivider()cf:AddButton({Text="Copy Discord",Func=function()setclipboard("https://discord.gg/nbPHzKzafN")b:Notify({Title="Invictus",Description="copied!",Time=2})end})local cg=ce.Home:AddRightGroupbox("Credits")cg:AddLabel("made by Entropy",true)cg:AddLabel("discord: 4entropy3",true)local ch=ce.Main:AddLeftGroupbox("Auto Parry")ch:AddToggle("autoParry",{Text="Auto Parry",Default=true})f.autoParry:OnChanged(function()x.autoParry=f.autoParry.Value end)ch:AddSlider("accuracy",{Text="Parry Accuracy",Default=50,Min=1,Max=100,Rounding=0})e.accuracy:OnChanged(function()x.accuracy=e.accuracy.Value O()end)ch:AddSlider("distance",{Text="Distance To Hit",Default=10,Min=5,Max=25,Rounding=1})e.distance:OnChanged(function()x.distanceHit=e.distance.Value end)ch:AddSlider("offset",{Text="Offset",Default=0,Min=0,Max=15,Rounding=1})e.offset:OnChanged(function()x.offset=e.offset.Value end)ch:AddToggle("playAnim",{Text="Play Animation",Default=false})f.playAnim:OnChanged(function()x.playAnimation=f.playAnim.Value end)ch:AddDropdown("curveType",{Values=B,Default="Camera",Text="Curve Type"})e.curveType:OnChanged(function()for ci,cj in ipairs(B)do if cj==e.curveType.Value then x.curveMode=ci break end end end)local ck=ce.Main:AddRightGroupbox("Other")ck:AddToggle("triggerbot",{Text="Triggerbot",Default=false})f.triggerbot:OnChanged(function()x.triggerbot=f.triggerbot.Value end)ck:AddToggle("lookAt",{Text="Look At Ball",Default=false})f.lookAt:OnChanged(function()x.lookAt=f.lookAt.Value end)ck:AddDropdown("lookType",{Values={"Camera","Character"},Default="Camera",Text="Look Type"})e.lookType:OnChanged(function()x.lookType=e.lookType.Value end)local cl=ce.Spam:AddLeftGroupbox("Manual Spam")cl:AddToggle("manualSpam",{Text="Manual Spam",Default=false})f.manualSpam:OnChanged(function()x.manualSpam=f.manualSpam.Value end)cl:AddSlider("spamRate",{Text="Spam Rate",Default=240,Min=60,Max=5000,Rounding=0})e.spamRate:OnChanged(function()x.spamRate=e.spamRate.Value end)local cm=ce.Spam:AddRightGroupbox("Auto Spam")cm:AddToggle("autoSpam",{Text="Auto Spam",Default=false})f.autoSpam:OnChanged(function()x.autoSpam=f.autoSpam.Value end)cm:AddSlider("spamThreshold",{Text="Parry Threshold",Default=1.5,Min=1,Max=5,Rounding=1})e.spamThreshold:OnChanged(function()x.spamThreshold=e.spamThreshold.Value end)local cn=ce.Visuals:AddLeftGroupbox("Ball Visualizers")cn:AddToggle("visBall",{Text="Distance To Hit",Default=true})f.visBall:OnChanged(function()z.ball=f.visBall.Value end)cn:AddToggle("visClash",{Text="Clash Range",Default=true})f.visClash:OnChanged(function()z.clash=f.visClash.Value end)cn:AddToggle("visDist",{Text="Ball Distance",Default=true})f.visDist:OnChanged(function()z.distance=f.visDist.Value end)local co=ce.Visuals:AddRightGroupbox("Circle Visualizers")co:AddToggle("circBall",{Text="Distance To Hit",Default=true})f.circBall:OnChanged(function()z.circleBall=f.circBall.Value end)co:AddToggle("circClash",{Text="Clash Range",Default=true})f.circClash:OnChanged(function()z.circleClash=f.circClash.Value end)co:AddToggle("circDist",{Text="Ball Distance",Default=true})f.circDist:OnChanged(function()z.circleDistance=f.circDist.Value end)local cp=ce.Visuals:AddLeftGroupbox("Settings")cp:AddDropdown("shape",{Values={"Ball","Block","Cylinder","Wedge","CornerWedge"},Default="Ball",Text="Shape"})e.shape:OnChanged(function()A.shape=e.shape.Value end)cp:AddDropdown("material",{Values={"Plastic","ForceField","Glass","Neon","SmoothPlastic","Metal"},Default="ForceField",Text="Material"})e.material:OnChanged(function()A.material=e.material.Value end)cp:AddLabel("Ball Color"):AddColorPicker("ballColor",{Default=Color3.fromRGB(255,255,255)})e.ballColor:OnChanged(function()A.color=e.ballColor.Value end)cp:AddLabel("Circle Color"):AddColorPicker("circColor",{Default=Color3.fromRGB(255,255,255)})e.circColor:OnChanged(function()A.circleColor=e.circColor.Value end)cp:AddSlider("transp",{Text="Transparency",Default=0,Min=0,Max=1,Rounding=1})e.transp:OnChanged(function()A.transparency=e.transp.Value end)cp:AddSlider("circHeight",{Text="Circle Height",Default=0.5,Min=0.5,Max=5,Rounding=1})e.circHeight:OnChanged(function()A.circleHeight=e.circHeight.Value end)cp:AddSlider("clashRange",{Text="Clash Range Size",Default=30,Min=10,Max=100,Rounding=1})e.clashRange:OnChanged(function()A.clashDist=e.clashRange.Value end)local cq=ce.Visuals:AddRightGroupbox("Rainbow")cq:AddToggle("rainbowBall",{Text="Rainbow Ball",Default=false})f.rainbowBall:OnChanged(function()x.rainbow=f.rainbowBall.Value end)cq:AddToggle("rainbowCirc",{Text="Rainbow Circle",Default=false})f.rainbowCirc:OnChanged(function()x.circleRainbow=f.rainbowCirc.Value end)local cr=ce.Utilities:AddLeftGroupbox("Utilities")cr:AddToggle("noSlash",{Text="Anti Slash Effect",Default=false})f.noSlash:OnChanged(function()y.noSlash=f.noSlash.Value end)local cs=ce.Utilities:AddRightGroupbox("Auto Stuff")cs:AddToggle("autoClaim",{Text="Auto Claim Rewards",Default=false})f.autoClaim:OnChanged(function()y.autoClaim=f.autoClaim.Value end)cs:AddToggle("autoExp",{Text="Auto Explosion Crate",Default=false})f.autoExp:OnChanged(function()y.autoExplosion=f.autoExp.Value end)cs:AddToggle("autoSword",{Text="Auto Sword Crate",Default=false})f.autoSword:OnChanged(function()y.autoSword=f.autoSword.Value end)local ct=ce.World:AddLeftGroupbox("World")ct:AddButton({Text="Reset World",Func=function()i.Ambient=r i.FogColor=s i.ClockTime=t b:Notify({Title="Invictus",Description="reset!",Time=2})end})ct:AddLabel("Ambient"):AddColorPicker("ambient",{Default=i.Ambient})e.ambient:OnChanged(function()i.Ambient=e.ambient.Value end)ct:AddLabel("Fog"):AddColorPicker("fog",{Default=i.FogColor})e.fog:OnChanged(function()i.FogColor=e.fog.Value end)ct:AddSlider("timeOfDay",{Text="Time",Default=i.ClockTime,Min=0,Max=24,Rounding=1})e.timeOfDay:OnChanged(function()i.ClockTime=e.timeOfDay.Value end)local cu=ce.World:AddRightGroupbox("Rainbow World")cu:AddToggle("rainbowAmb",{Text="Rainbow Ambient",Default=false})f.rainbowAmb:OnChanged(function()x.rainbowAmbient=f.rainbowAmb.Value end)cu:AddToggle("rainbowFog",{Text="Rainbow Fog",Default=false})f.rainbowFog:OnChanged(function()x.rainbowFog=f.rainbowFog.Value end)local cv=ce.Settings:AddLeftGroupbox("Menu")cv:AddToggle("keybindMenu",{Default=false,Text="Show Keybinds"})f.keybindMenu:OnChanged(function()b.KeybindFrame.Visible=f.keybindMenu.Value end)cv:AddLabel("Menu Key"):AddKeyPicker("menuKey",{Default="RightShift",NoUI=true})cv:AddButton({Text="Unload",Func=function()b:Unload()end})b.ToggleKeybind=e.menuKey c:SetLibrary(b)d:SetLibrary(b)d:IgnoreThemeSettings()d:SetIgnoreIndexes({"menuKey"})c:SetFolder("Invictus")d:SetFolder("Invictus/BladeBall")d:BuildConfigSection(ce.Settings)c:ApplyToTab(ce.Settings)d:LoadAutoloadConfig()b:OnUnload(function()bT:Destroy()bU:Destroy()bV:Destroy()bW:Destroy()bX:Destroy()bY:Destroy()bZ:Destroy()end)b:Notify({Title="Invictus",Description="loaded! have fun :3",Time=3})cd:SelectTab(1)
+repeat task.wait() until game:IsLoaded()
+
+local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+
+local Options = Library.Options
+local Toggles = Library.Toggles
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local Stats = game:GetService("Stats")
+local Debris = game:GetService("Debris")
+
+local LocalPlayer = Players.LocalPlayer
+local BallsFolder = workspace:WaitForChild("Balls", 999999)
+local AliveFolder = workspace:FindFirstChild("Alive") or workspace:WaitForChild("Alive")
+local RuntimeFolder = workspace.Runtime
+
+local OriginalAmbient = Lighting.Ambient
+local OriginalFogColor = Lighting.FogColor
+local OriginalClockTime = Lighting.ClockTime
+
+local CapturedRemotes = {}
+local HookedMetatables = {}
+local CapturedParryKey = nil
+
+local ParryConfig = {
+    autoParryEnabled = true,
+    pingBased = true,
+    distanceToHit = 10,
+    pingOffset = 0,
+    curveMode = 1,
+    playAnimation = false,
+    divisorMultiplier = 1.1,
+    accuracy = 50,
+    hasParried = false,
+    parryCount = 0,
+    firstParryDone = false,
+    tornadoTime = tick(),
+    lerpRadians = 0,
+    lastWarping = tick(),
+    curvingTime = tick(),
+    
+    lookAtBall = false,
+    lookAtType = "Camera",
+    
+    rainbowVisualizer = false,
+    rainbowCircle = false,
+    rainbowAmbient = false,
+    rainbowFog = false,
+    
+    triggerbotEnabled = false,
+    triggerbotParrying = false,
+    triggerbotParries = 0,
+    
+    manualSpamEnabled = false,
+    autoSpamEnabled = false,
+    spamRate = 240,
+    spamAccumulator = 0,
+    spamThreshold = 1.5,
+    
+    infinityActive = false,
+    deathslashActive = false,
+    timeholeActive = false,
+    slashesActive = false,
+    slashesCount = 0
+}
+
+local UtilityConfig = {
+    antiSlashEffect = false,
+    autoClaimRewards = false,
+    autoSwordCrate = false,
+    autoExplosionCrate = false
+}
+
+local VisualizerToggles = {
+    ballVisualizer = true,
+    clashVisualizer = true,
+    distanceVisualizer = true,
+    circleBallVisualizer = true,
+    circleClashVisualizer = true,
+    circleDistanceVisualizer = true
+}
+
+local VisualizerSettings = {
+    shape = "Ball",
+    material = "ForceField",
+    color = Color3.fromRGB(255, 255, 255),
+    circleColor = Color3.fromRGB(255, 255, 255),
+    transparency = 0,
+    circleHeight = 0.5,
+    clashDistance = 30
+}
+
+local CurveTypes = {
+    "Camera",
+    "Random", 
+    "Accelerated",
+    "Backwards",
+    "Slow",
+    "High"
+}
+
+local SwordsController = nil
+local ParryFunction = nil
+
+if ReplicatedStorage:FindFirstChild("Controllers") then
+    for _, controller in ipairs(ReplicatedStorage.Controllers:GetChildren()) do
+        if controller.Name:match("^SwordsController%s*$") then
+            SwordsController = controller
+        end
+    end
+end
+
+if LocalPlayer.PlayerGui:FindFirstChild("Hotbar") and LocalPlayer.PlayerGui.Hotbar:FindFirstChild("Block") then
+    for _, connection in next, getconnections(LocalPlayer.PlayerGui.Hotbar.Block.Activated) do
+        if SwordsController and getfenv(connection.Function).script == SwordsController then
+            ParryFunction = connection.Function
+            break
+        end
+    end
+end
+
+local function IsValidParryArgs(args)
+    return #args == 7 
+        and type(args[2]) == "string" 
+        and type(args[3]) == "number" 
+        and typeof(args[4]) == "CFrame" 
+        and type(args[5]) == "table" 
+        and type(args[6]) == "table" 
+        and type(args[7]) == "boolean"
+end
+
+local function HookRemote(remote)
+    if not CapturedRemotes[remote] then
+        if not HookedMetatables[getrawmetatable(remote)] then
+            HookedMetatables[getrawmetatable(remote)] = true
+            
+            local metatable = getrawmetatable(remote)
+            setreadonly(metatable, false)
+            
+            local originalIndex = metatable.__index
+            metatable.__index = function(self, key)
+                if key == "FireServer" and self:IsA("RemoteEvent") or key == "InvokeServer" and self:IsA("RemoteFunction") then
+                    return function(obj, ...)
+                        local args = {...}
+                        if IsValidParryArgs(args) and not CapturedRemotes[self] then
+                            CapturedRemotes[self] = args
+                            CapturedParryKey = args[2]
+                        end
+                        return originalIndex(self, key)(obj, unpack(args))
+                    end
+                end
+                return originalIndex(self, key)
+            end
+            
+            setreadonly(metatable, true)
+        end
+    end
+end
+
+for _, child in pairs(ReplicatedStorage:GetChildren()) do
+    if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+        HookRemote(child)
+    end
+end
+
+ReplicatedStorage.ChildAdded:Connect(function(child)
+    if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+        HookRemote(child)
+    end
+end)
+
+local function UpdateDivisorMultiplier()
+    ParryConfig.divisorMultiplier = 0.75 + (ParryConfig.accuracy - 1) * 0.0303
+end
+
+local function GetClosestPlayer()
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    
+    for _, character in pairs(AliveFolder:GetChildren()) do
+        if character ~= LocalPlayer.Character and character.PrimaryPart then
+            local distance = LocalPlayer:DistanceFromCharacter(character.PrimaryPart.Position)
+            if distance < closestDistance then
+                closestDistance = distance
+                closestPlayer = character
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+local function GetCurveCFrame()
+    local camera = workspace.CurrentCamera
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not hrp then 
+        return camera.CFrame 
+    end
+    
+    local closestPlayer = GetClosestPlayer()
+    local targetHrp = closestPlayer and closestPlayer:FindFirstChild("HumanoidRootPart")
+    local targetPosition = targetHrp and targetHrp.Position or hrp.Position + camera.CFrame.LookVector * 100
+    
+    local curveFunctions = {
+        function()
+            return camera.CFrame
+        end,
+        
+        function()
+            local direction = (targetPosition - hrp.Position).Unit
+            local randomOffset
+            local attempts = 0
+            repeat
+                randomOffset = Vector3.new(
+                    math.random(-4000, 4000),
+                    math.random(-4000, 4000),
+                    math.random(-4000, 4000)
+                )
+                local newDirection = ((targetPosition + randomOffset) - hrp.Position).Unit
+                local dotProduct = direction:Dot(newDirection)
+                attempts = attempts + 1
+            until dotProduct < 0.95 or attempts > 10
+            return CFrame.new(hrp.Position, targetPosition + randomOffset)
+        end,
+        
+        function()
+            return CFrame.new(hrp.Position, targetPosition + Vector3.new(0, 5, 0))
+        end,
+        
+        function()
+            local backwardsDirection = (hrp.Position - targetPosition).Unit
+            local backwardsPosition = (hrp.Position + backwardsDirection * 10000) + Vector3.new(0, 1000, 0)
+            return CFrame.new(camera.CFrame.Position, backwardsPosition)
+        end,
+        
+        function()
+            return CFrame.new(hrp.Position, targetPosition + Vector3.new(0, -9e18, 0))
+        end,
+        
+        function()
+            return CFrame.new(hrp.Position, targetPosition + Vector3.new(0, 9e18, 0))
+        end
+    }
+    
+    return curveFunctions[ParryConfig.curveMode]()
+end
+
+local function ExecuteParry()
+    if ParryConfig.parryCount > 10000 or not LocalPlayer.Character then 
+        return 
+    end
+    
+    local camera = workspace.CurrentCamera
+    local success, mouseLocation = pcall(function()
+        return UserInputService:GetMouseLocation()
+    end)
+    
+    if not success then 
+        return 
+    end
+    
+    local mousePos = {mouseLocation.X, mouseLocation.Y}
+    local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+    
+    local playerScreenPositions = {}
+    if AliveFolder then
+        for _, character in pairs(AliveFolder:GetChildren()) do
+            if character.PrimaryPart then
+                local posSuccess, screenPos = pcall(function()
+                    return camera:WorldToScreenPoint(character.PrimaryPart.Position)
+                end)
+                if posSuccess then
+                    playerScreenPositions[character.Name] = screenPos
+                end
+            end
+        end
+    end
+    
+    local curveCFrame = GetCurveCFrame()
+    
+    if not ParryConfig.firstParryDone then
+        for _, connection in pairs(getconnections(LocalPlayer.PlayerGui.Hotbar.Block.Activated)) do
+            connection:Fire()
+        end
+        ParryConfig.firstParryDone = true
+        return
+    end
+    
+    local screenPosition
+    if isMobile then
+        local viewportSize = camera.ViewportSize
+        screenPosition = {viewportSize.X / 2, viewportSize.Y / 2}
+    else
+        screenPosition = mousePos
+    end
+    
+    for remote, originalArgs in pairs(CapturedRemotes) do
+        local newArgs = {
+            originalArgs[1],
+            originalArgs[2],
+            originalArgs[3],
+            curveCFrame,
+            playerScreenPositions,
+            screenPosition,
+            originalArgs[7]
+        }
+        
+        pcall(function()
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer(unpack(newArgs))
+            elseif remote:IsA("RemoteFunction") then
+                remote:InvokeServer(unpack(newArgs))
+            end
+        end)
+    end
+    
+    if ParryConfig.parryCount > 10000 then 
+        return 
+    end
+    
+    ParryConfig.parryCount = ParryConfig.parryCount + 1
+    task.delay(0.5, function()
+        if ParryConfig.parryCount > 0 then
+            ParryConfig.parryCount = ParryConfig.parryCount - 1
+        end
+    end)
+end
+
+local function ExecuteKeypress()
+    if ParryConfig.parryCount > 10000 or not LocalPlayer.Character then 
+        return 
+    end
+    
+    if ParryFunction then
+        ParryFunction()
+    end
+    
+    if ParryConfig.parryCount > 10000 then 
+        return 
+    end
+    
+    ParryConfig.parryCount = ParryConfig.parryCount + 1
+    task.delay(0.5, function()
+        if ParryConfig.parryCount > 0 then
+            ParryConfig.parryCount = ParryConfig.parryCount - 1
+        end
+    end)
+end
+
+local function PlayGrabAnimation()
+    if not ParryConfig.playAnimation then 
+        return 
+    end
+    
+    local character = LocalPlayer.Character
+    if not character then 
+        return 
+    end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+    
+    if not humanoid or not animator then 
+        return 
+    end
+    
+    local equippedSword = character:GetAttribute("CurrentlyEquippedSword")
+    if not equippedSword then 
+        return 
+    end
+    
+    local swordCollection = ReplicatedStorage.Shared.SwordAPI.Collection
+    local grabAnimation = swordCollection.Default:FindFirstChild("GrabParry")
+    
+    if not grabAnimation then 
+        return 
+    end
+    
+    local swordData = ReplicatedStorage.Shared.ReplicatedInstances.Swords.GetSword:Invoke(equippedSword)
+    if not swordData or not swordData.AnimationType then 
+        return 
+    end
+    
+    for _, animationFolder in pairs(swordCollection:GetChildren()) do
+        if animationFolder.Name == swordData.AnimationType then
+            if animationFolder:FindFirstChild("GrabParry") or animationFolder:FindFirstChild("Grab") then
+                local animName = animationFolder:FindFirstChild("GrabParry") and "GrabParry" or "Grab"
+                grabAnimation = animationFolder[animName]
+            end
+        end
+    end
+    
+    local animationTrack = animator:LoadAnimation(grabAnimation)
+    animationTrack.Priority = Enum.AnimationPriority.Action4
+    animationTrack:Play()
+end
+
+local function ExecuteParryWithAnimation()
+    PlayGrabAnimation()
+    ExecuteParry()
+end
+
+local function Lerp(a, b, t)
+    return a + (b - a) * t
+end
+
+local function GetBall()
+    local ball = nil
+    for _, child in pairs(BallsFolder:GetChildren()) do
+        if child:GetAttribute("realBall") then
+            child.CanCollide = false
+            ball = child
+            break
+        end
+    end
+    return ball
+end
+
+local function IsBallCurved()
+    local ball = GetBall()
+    if not ball then 
+        return false 
+    end
+    
+    local zoomies = ball:FindFirstChild("zoomies")
+    if not zoomies then 
+        return false 
+    end
+    
+    local velocity = zoomies.VectorVelocity
+    local velocityDirection = velocity.Unit
+    local toPlayerDirection = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Unit
+    local dotProduct = toPlayerDirection:Dot(velocityDirection)
+    
+    local speed = velocity.Magnitude
+    local speedThreshold = math.min(speed / 100, 40)
+    
+    local velocityDifference = (velocityDirection - velocity).Unit
+    local directionSimilarity = toPlayerDirection:Dot(velocityDifference)
+    local dotDifference = dotProduct - directionSimilarity
+    
+    local distance = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Magnitude
+    local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+    local dotThreshold = 0.5 - ping / 1000
+    local reachTime = distance / speed - ping / 1000
+    
+    local distanceThreshold = (15 - math.min(distance / 1000, 15)) + speedThreshold
+    local clampedDot = math.clamp(dotProduct, -1, 1)
+    local radians = math.rad(math.asin(clampedDot))
+    
+    ParryConfig.lerpRadians = Lerp(ParryConfig.lerpRadians, radians, 0.8)
+    
+    if speed > 0 and reachTime > ping / 10 then
+        distanceThreshold = math.max(distanceThreshold - 15, 15)
+    end
+    
+    if distance < distanceThreshold then
+        return false
+    end
+    
+    if dotDifference < dotThreshold then
+        return true
+    end
+    
+    if ParryConfig.lerpRadians < 0.018 then
+        ParryConfig.lastWarping = tick()
+    end
+    
+    if tick() - ParryConfig.lastWarping < reachTime / 1.5 then
+        return true
+    end
+    
+    if tick() - ParryConfig.curvingTime < reachTime / 1.5 then
+        return true
+    end
+    
+    return dotProduct < dotThreshold
+end
+
+ReplicatedStorage.Remotes.DeathBall.OnClientEvent:Connect(function(_, active)
+    ParryConfig.deathslashActive = active or false
+end)
+
+ReplicatedStorage.Remotes.InfinityBall.OnClientEvent:Connect(function(_, active)
+    ParryConfig.infinityActive = active or false
+end)
+
+pcall(function()
+    ReplicatedStorage.Packages._Index["sleitnick_net@0.1.0"].net["RE/TimeHoleActivate"].OnClientEvent:Connect(function(...)
+        local args = {...}
+        local target = args[1]
+        if target == LocalPlayer or target == LocalPlayer.Name or (target and target.Name == LocalPlayer.Name) then
+            ParryConfig.timeholeActive = true
+        end
+    end)
+    
+    ReplicatedStorage.Packages._Index["sleitnick_net@0.1.0"].net["RE/TimeHoleDeactivate"].OnClientEvent:Connect(function()
+        ParryConfig.timeholeActive = false
+    end)
+    
+    ReplicatedStorage.Packages._Index["sleitnick_net@0.1.0"].net["RE/SlashesOfFuryActivate"].OnClientEvent:Connect(function(...)
+        local args = {...}
+        local target = args[1]
+        if target == LocalPlayer or target == LocalPlayer.Name or (target and target.Name == LocalPlayer.Name) then
+            ParryConfig.slashesActive = true
+            ParryConfig.slashesCount = 0
+        end
+    end)
+    
+    ReplicatedStorage.Packages._Index["sleitnick_net@0.1.0"].net["RE/SlashesOfFuryEnd"].OnClientEvent:Connect(function()
+        ParryConfig.slashesActive = false
+        ParryConfig.slashesCount = 0
+    end)
+end)
+
+ReplicatedStorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(_, source)
+    if source.Parent and source.Parent ~= LocalPlayer.Character then
+        if not AliveFolder or source.Parent.Parent ~= AliveFolder then
+            return
+        end
+    end
+    
+    local closestPlayer = GetClosestPlayer()
+    local ball = GetBall()
+    
+    if not ball or not closestPlayer then 
+        return 
+    end
+    
+    local playerDistance = (LocalPlayer.Character.PrimaryPart.Position - closestPlayer.PrimaryPart.Position).Magnitude
+    local ballDistance = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Magnitude
+    local ballDirection = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Unit
+    local dotProduct = ballDirection:Dot(ball.AssemblyLinearVelocity.Unit)
+    
+    local isCurved = IsBallCurved()
+    
+    if playerDistance < 15 and ballDistance < 15 and dotProduct > -0.25 then
+        if isCurved then
+            ExecuteParryWithAnimation()
+        end
+    end
+end)
+
+RunService.PreSimulation:Connect(function()
+    if not ParryConfig.autoParryEnabled or not LocalPlayer.Character or not LocalPlayer.Character.PrimaryPart then
+        return
+    end
+    
+    local ball = GetBall()
+    if not ball then 
+        return 
+    end
+    
+    local zoomies = ball:FindFirstChild("zoomies")
+    if not zoomies then 
+        return 
+    end
+    
+    ball:GetAttributeChangedSignal("target"):Once(function()
+        ParryConfig.hasParried = false
+    end)
+    
+    if ParryConfig.hasParried then 
+        return 
+    end
+    
+    local target = ball:GetAttribute("target")
+    local velocity = zoomies.VectorVelocity
+    local distance = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Magnitude
+    
+    local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 10
+    local pingThreshold = math.clamp(ping / 10, 5, 17)
+    
+    local speed = velocity.Magnitude
+    local cappedSpeedDiff = math.min(math.max(speed - 9.5, 0), 650)
+    local speedDivisor = (2.4 + cappedSpeedDiff * 0.002) * ParryConfig.divisorMultiplier
+    local parryAccuracy = pingThreshold + math.max(speed / speedDivisor, 9.5)
+    
+    local isCurved = IsBallCurved()
+    
+    if ball:FindFirstChild("AeroDynamicSlashVFX") then
+        ball.AeroDynamicSlashVFX:Destroy()
+        ParryConfig.tornadoTime = tick()
+    end
+    
+    if RuntimeFolder:FindFirstChild("Tornado") then
+        local tornadoTime = RuntimeFolder.Tornado:GetAttribute("TornadoTime") or 1
+        if tick() - ParryConfig.tornadoTime < tornadoTime + 0.314159 then
+            return
+        end
+    end
+    
+    local mainBall = GetBall()
+    if mainBall and mainBall:GetAttribute("target") == LocalPlayer.Name and isCurved then
+        return
+    end
+    
+    if ball:FindFirstChild("ComboCounter") then
+        return
+    end
+    
+    if LocalPlayer.Character.PrimaryPart:FindFirstChild("SingularityCape") then
+        return
+    end
+    
+    if ParryConfig.infinityActive then
+        return
+    end
+    
+    if ParryConfig.deathslashActive then
+        return
+    end
+    
+    if ParryConfig.timeholeActive then
+        return
+    end
+    
+    if ParryConfig.slashesActive then
+        return
+    end
+    
+    if target == LocalPlayer.Name and distance <= parryAccuracy then
+        ExecuteParryWithAnimation()
+        ParryConfig.hasParried = true
+        
+        local startTime = tick()
+        repeat
+            RunService.Stepped:Wait()
+        until tick() - startTime >= 1 or not ParryConfig.hasParried
+        
+        ParryConfig.hasParried = false
+    end
+end)
+
+local function TriggerBotParry(ball)
+    if ParryConfig.triggerbotParrying or ParryConfig.triggerbotParries > 10000 then
+        return
+    end
+    
+    if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart and LocalPlayer.Character.PrimaryPart:FindFirstChild("SingularityCape") then
+        return
+    end
+    
+    ParryConfig.triggerbotParrying = true
+    ParryConfig.triggerbotParries = ParryConfig.triggerbotParries + 1
+    
+    ExecuteParryWithAnimation()
+    
+    task.delay(0.5, function()
+        if ParryConfig.triggerbotParries > 0 then
+            ParryConfig.triggerbotParries = ParryConfig.triggerbotParries - 1
+        end
+    end)
+    
+    local connection
+    connection = ball:GetAttributeChangedSignal("target"):Once(function()
+        ParryConfig.triggerbotParrying = false
+        if connection then
+            connection:Disconnect()
+        end
+    end)
+    
+    task.spawn(function()
+        local startTime = tick()
+        repeat
+            RunService.Heartbeat:Wait()
+        until tick() - startTime >= 1 or not ParryConfig.triggerbotParrying
+        ParryConfig.triggerbotParrying = false
+    end)
+end
+
+RunService.Heartbeat:Connect(function()
+    if not ParryConfig.triggerbotEnabled then 
+        return 
+    end
+    
+    if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart and LocalPlayer.Character.PrimaryPart:FindFirstChild("SingularityCape") then
+        return
+    end
+    
+    for _, ball in pairs(BallsFolder:GetChildren()) do
+        if ball:IsA("BasePart") and ball:GetAttribute("target") == LocalPlayer.Name then
+            TriggerBotParry(ball)
+            break
+        end
+    end
+end)
+
+RunService.Heartbeat:Connect(function(deltaTime)
+    if not ParryConfig.manualSpamEnabled then 
+        return 
+    end
+    
+    if not LocalPlayer.Character or LocalPlayer.Character.Parent ~= AliveFolder then
+        return
+    end
+    
+    ParryConfig.spamAccumulator = ParryConfig.spamAccumulator + deltaTime
+    local spamInterval = 1 / ParryConfig.spamRate
+    
+    if ParryConfig.spamAccumulator >= spamInterval then
+        ParryConfig.spamAccumulator = 0
+        ExecuteParry()
+    end
+end)
+
+RunService.PreSimulation:Connect(function()
+    if not ParryConfig.autoSpamEnabled then 
+        return 
+    end
+    
+    local ball = GetBall()
+    if not ball then 
+        return 
+    end
+    
+    if ParryConfig.slashesActive then 
+        return 
+    end
+    
+    local zoomies = ball:FindFirstChild("zoomies")
+    if not zoomies then 
+        return 
+    end
+    
+    local closestPlayer = GetClosestPlayer()
+    if not closestPlayer or not closestPlayer.PrimaryPart then 
+        return 
+    end
+    
+    local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+    local pingThreshold = math.clamp(ping / 10, 1, 16)
+    local target = ball:GetAttribute("target")
+    
+    local playerDistance = (LocalPlayer.Character.PrimaryPart.Position - closestPlayer.PrimaryPart.Position).Magnitude
+    local ballDistance = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Magnitude
+    local speed = zoomies.VectorVelocity.Magnitude
+    
+    local maxSpamDistance = pingThreshold + math.min(speed / 6, 255)
+    
+    if playerDistance > maxSpamDistance or ballDistance > maxSpamDistance then
+        return
+    end
+    
+    local isPulsed = LocalPlayer.Character:GetAttribute("Pulsed")
+    if isPulsed then 
+        return 
+    end
+    
+    if target == LocalPlayer.Name and playerDistance > 30 and ballDistance > 30 then
+        return
+    end
+    
+    if ballDistance <= maxSpamDistance and ParryConfig.parryCount > ParryConfig.spamThreshold then
+        ExecuteParry()
+    end
+end)
+
+local function ClaimPlaytimeRewards()
+    for i = 1, 6 do
+        pcall(function()
+            ReplicatedStorage.Packages._Index["sleitnick_net@0.1.0"].net["RF/ClaimPlaytimeReward"]:InvokeServer(i)
+        end)
+    end
+end
+
+local function OpenExplosionCrate()
+    pcall(function()
+        ReplicatedStorage.Remote.RemoteFunction:InvokeServer("PromptPurchaseCrate", workspace.Spawn.Crates.NormalExplosionCrate)
+    end)
+end
+
+local function OpenSwordCrate()
+    pcall(function()
+        ReplicatedStorage.Remote.RemoteFunction:InvokeServer("PromptPurchaseCrate", workspace.Spawn.Crates.NormalSwordCrate)
+    end)
+end
+
+local function RemoveSlashEffect(descendant)
+    if not UtilityConfig.antiSlashEffect then 
+        return 
+    end
+    
+    if string.find(string.lower(descendant.ClassName), "particleemitter") then
+        pcall(function()
+            descendant.Lifetime = NumberRange.new(0)
+        end)
+    end
+end
+
+workspace.DescendantAdded:Connect(RemoveSlashEffect)
+
+RunService.PreRender:Connect(function()
+    if not ParryConfig.lookAtBall then 
+        return 
+    end
+    
+    local ball = GetBall()
+    if not ball then 
+        return 
+    end
+    
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local camera = workspace.CurrentCamera
+    
+    if ParryConfig.lookAtType == "Character" and hrp then
+        local lookPosition = Vector3.new(ball.Position.X, hrp.Position.Y, ball.Position.Z)
+        hrp.CFrame = CFrame.lookAt(hrp.Position, lookPosition)
+    elseif ParryConfig.lookAtType == "Camera" then
+        camera.CFrame = CFrame.lookAt(camera.CFrame.Position, ball.Position)
+    end
+end)
+
+RunService.PostSimulation:Connect(function()
+    if ParryConfig.rainbowAmbient then
+        Lighting.Ambient = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+    end
+    
+    if ParryConfig.rainbowFog then
+        Lighting.FogColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+    end
+end)
+
+RunService.PostSimulation:Connect(function()
+    if UtilityConfig.autoClaimRewards then 
+        ClaimPlaytimeRewards() 
+    end
+    
+    if UtilityConfig.autoSwordCrate then 
+        OpenSwordCrate() 
+    end
+    
+    if UtilityConfig.autoExplosionCrate then 
+        OpenExplosionCrate() 
+    end
+end)
+
+local VisualizerPart1 = Instance.new("Part")
+local VisualizerPart2 = Instance.new("Part")
+local VisualizerPart3 = Instance.new("Part")
+local CircleAdornee = Instance.new("Part", workspace.CurrentCamera)
+local CircleAdornment1 = Instance.new("CylinderHandleAdornment", game.CoreGui)
+local CircleAdornment2 = Instance.new("CylinderHandleAdornment", game.CoreGui)
+local CircleAdornment3 = Instance.new("CylinderHandleAdornment", game.CoreGui)
+
+VisualizerPart1.CanCollide = false
+VisualizerPart2.CanCollide = false
+VisualizerPart3.CanCollide = false
+VisualizerPart1.Anchored = false
+VisualizerPart2.Anchored = false
+VisualizerPart3.Anchored = false
+VisualizerPart1.Parent = nil
+VisualizerPart2.Parent = nil
+VisualizerPart3.Parent = nil
+
+CircleAdornee.Transparency = 1
+CircleAdornee.CanCollide = false
+CircleAdornee.Anchored = false
+CircleAdornee.Size = Vector3.new(1, 1, 1)
+
+CircleAdornment1.Visible = false
+CircleAdornment2.Visible = false
+CircleAdornment3.Visible = false
+
+RunService.PostSimulation:Connect(function()
+    local ball = GetBall()
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not ball or not hrp then
+        VisualizerPart1.Parent = nil
+        VisualizerPart2.Parent = nil
+        VisualizerPart3.Parent = nil
+        CircleAdornment1.Visible = false
+        CircleAdornment2.Visible = false
+        CircleAdornment3.Visible = false
+        return
+    end
+    
+    if not ParryConfig.autoParryEnabled then 
+        return 
+    end
+    
+    local hipHeight = LocalPlayer.Character.Humanoid.HipHeight + VisualizerSettings.circleHeight
+    local ballDistance = (ball.Position - workspace.CurrentCamera.Focus.Position).Magnitude
+    local rainbowColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+    
+    if VisualizerToggles.ballVisualizer then
+        VisualizerPart1.Shape = VisualizerSettings.shape
+        VisualizerPart1.Material = VisualizerSettings.material
+        VisualizerPart1.Transparency = VisualizerSettings.transparency
+        VisualizerPart1.Size = Vector3.new(ParryConfig.distanceToHit, ParryConfig.distanceToHit, ParryConfig.distanceToHit)
+        VisualizerPart1.Color = ParryConfig.rainbowVisualizer and rainbowColor or VisualizerSettings.color
+        VisualizerPart1.CFrame = hrp.CFrame
+        VisualizerPart1.Parent = hrp
+    else
+        VisualizerPart1.Parent = nil
+    end
+    
+    if VisualizerToggles.clashVisualizer then
+        VisualizerPart2.Shape = VisualizerSettings.shape
+        VisualizerPart2.Material = VisualizerSettings.material
+        VisualizerPart2.Transparency = VisualizerSettings.transparency
+        VisualizerPart2.Size = Vector3.new(VisualizerSettings.clashDistance, VisualizerSettings.clashDistance, VisualizerSettings.clashDistance)
+        VisualizerPart2.Color = ParryConfig.rainbowVisualizer and rainbowColor or VisualizerSettings.color
+        VisualizerPart2.CFrame = hrp.CFrame
+        VisualizerPart2.Parent = workspace
+    else
+        VisualizerPart2.Parent = nil
+    end
+    
+    if VisualizerToggles.distanceVisualizer then
+        VisualizerPart3.Shape = VisualizerSettings.shape
+        VisualizerPart3.Material = VisualizerSettings.material
+        VisualizerPart3.Transparency = VisualizerSettings.transparency
+        VisualizerPart3.Size = Vector3.new(ballDistance, ballDistance, ballDistance)
+        VisualizerPart3.Color = ParryConfig.rainbowVisualizer and rainbowColor or VisualizerSettings.color
+        VisualizerPart3.CFrame = hrp.CFrame
+        VisualizerPart3.Parent = hrp
+    else
+        VisualizerPart3.Parent = nil
+    end
+    
+    if VisualizerToggles.circleBallVisualizer or VisualizerToggles.circleClashVisualizer or VisualizerToggles.circleDistanceVisualizer then
+        CircleAdornee.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y - hipHeight, hrp.Position.Z)
+    end
+    
+    local circleColor = ParryConfig.rainbowCircle and rainbowColor or VisualizerSettings.circleColor
+    
+    if VisualizerToggles.circleBallVisualizer then
+        CircleAdornment1.CFrame = CFrame.fromOrientation(math.rad(90), 0, 0)
+        CircleAdornment1.Adornee = CircleAdornee
+        CircleAdornment1.Radius = ParryConfig.distanceToHit
+        CircleAdornment1.InnerRadius = ParryConfig.distanceToHit
+        CircleAdornment1.Height = hipHeight
+        CircleAdornment1.Color3 = circleColor
+        CircleAdornment1.Visible = true
+    else
+        CircleAdornment1.Visible = false
+    end
+    
+    if VisualizerToggles.circleClashVisualizer then
+        CircleAdornment2.CFrame = CFrame.fromOrientation(math.rad(90), 0, 0)
+        CircleAdornment2.Adornee = CircleAdornee
+        CircleAdornment2.Radius = VisualizerSettings.clashDistance
+        CircleAdornment2.InnerRadius = VisualizerSettings.clashDistance
+        CircleAdornment2.Height = hipHeight
+        CircleAdornment2.Color3 = circleColor
+        CircleAdornment2.Visible = true
+    else
+        CircleAdornment2.Visible = false
+    end
+    
+    if VisualizerToggles.circleDistanceVisualizer then
+        CircleAdornment3.CFrame = CFrame.fromOrientation(math.rad(90), 0, 0)
+        CircleAdornment3.Adornee = CircleAdornee
+        CircleAdornment3.Radius = ballDistance
+        CircleAdornment3.InnerRadius = ballDistance
+        CircleAdornment3.Height = hipHeight
+        CircleAdornment3.Color3 = circleColor
+        CircleAdornment3.Visible = true
+    else
+        CircleAdornment3.Visible = false
+    end
+end)
+
+local Window = Library:CreateWindow({
+    Title = "Invictus",
+    Footer = "Alpha Build v0.1 | invictus uwu",
+    Icon = 85451000785501,
+    NotifySide = "Right",
+    ShowCustomCursor = true,
+})
+
+local Tabs = {
+    Home = Window:AddTab("Home", "home"),
+    Main = Window:AddTab("Main", "swords"),
+    Spam = Window:AddTab("Spam", "zap"),
+    Visuals = Window:AddTab("Visuals", "eye"),
+    Utilities = Window:AddTab("Utilities", "wrench"),
+    World = Window:AddTab("World", "globe-2"),
+    Settings = Window:AddTab("Settings", "settings"),
+}
+
+local HomeLeftGroup = Tabs.Home:AddLeftGroupbox("Welcome")
+HomeLeftGroup:AddLabel("yo " .. LocalPlayer.DisplayName .. "!", true)
+HomeLeftGroup:AddLabel("this is alpha build, expect bugs!", true)
+HomeLeftGroup:AddLabel("some features may not work properly", true)
+HomeLeftGroup:AddDivider()
+HomeLeftGroup:AddButton({
+    Text = "Copy Discord",
+    Func = function()
+        setclipboard("https://discord.gg/nbPHzKzafN")
+        Library:Notify({
+            Title = "Invictus",
+            Description = "copied to clipboard!",
+            Time = 2
+        })
+    end,
+})
+
+local HomeRightGroup = Tabs.Home:AddRightGroupbox("Credits")
+HomeRightGroup:AddLabel("made by Entropy", true)
+HomeRightGroup:AddLabel("discord: 4entropy3", true)
+HomeRightGroup:AddDivider()
+HomeRightGroup:AddLabel("ALPHA BUILD - NOT FINISHED", true)
+
+local MainLeftGroup = Tabs.Main:AddLeftGroupbox("Auto Parry")
+
+MainLeftGroup:AddToggle("autoParry", {
+    Text = "Auto Parry",
+    Default = true,
+    Risky = true,
+})
+
+Toggles.autoParry:OnChanged(function()
+    ParryConfig.autoParryEnabled = Toggles.autoParry.Value
+end)
+
+MainLeftGroup:AddSlider("accuracy", {
+    Text = "Parry Accuracy",
+    Default = 50,
+    Min = 1,
+    Max = 100,
+    Rounding = 0,
+})
+
+Options.accuracy:OnChanged(function()
+    ParryConfig.accuracy = Options.accuracy.Value
+    UpdateDivisorMultiplier()
+end)
+
+MainLeftGroup:AddSlider("distanceToHit", {
+    Text = "Distance To Hit",
+    Default = 10,
+    Min = 5,
+    Max = 25,
+    Rounding = 1,
+})
+
+Options.distanceToHit:OnChanged(function()
+    ParryConfig.distanceToHit = Options.distanceToHit.Value
+end)
+
+MainLeftGroup:AddSlider("pingOffset", {
+    Text = "Ping Offset",
+    Default = 0,
+    Min = 0,
+    Max = 15,
+    Rounding = 1,
+})
+
+Options.pingOffset:OnChanged(function()
+    ParryConfig.pingOffset = Options.pingOffset.Value
+end)
+
+MainLeftGroup:AddToggle("playAnimation", {
+    Text = "Play Animation",
+    Default = false,
+})
+
+Toggles.playAnimation:OnChanged(function()
+    ParryConfig.playAnimation = Toggles.playAnimation.Value
+end)
+
+MainLeftGroup:AddDropdown("curveType", {
+    Values = CurveTypes,
+    Default = "Camera",
+    Text = "Curve Type",
+})
+
+Options.curveType:OnChanged(function()
+    for index, curveName in ipairs(CurveTypes) do
+        if curveName == Options.curveType.Value then
+            ParryConfig.curveMode = index
+            break
+        end
+    end
+end)
+
+local MainRightGroup = Tabs.Main:AddRightGroupbox("Other Features")
+
+MainRightGroup:AddToggle("triggerbot", {
+    Text = "Triggerbot",
+    Default = false,
+    Risky = true,
+})
+
+Toggles.triggerbot:OnChanged(function()
+    ParryConfig.triggerbotEnabled = Toggles.triggerbot.Value
+end)
+
+MainRightGroup:AddToggle("lookAtBall", {
+    Text = "Look At Ball",
+    Default = false,
+})
+
+Toggles.lookAtBall:OnChanged(function()
+    ParryConfig.lookAtBall = Toggles.lookAtBall.Value
+end)
+
+MainRightGroup:AddDropdown("lookAtType", {
+    Values = {"Camera", "Character"},
+    Default = "Camera",
+    Text = "Look Type",
+})
+
+Options.lookAtType:OnChanged(function()
+    ParryConfig.lookAtType = Options.lookAtType.Value
+end)
+
+local SpamLeftGroup = Tabs.Spam:AddLeftGroupbox("Manual Spam")
+
+SpamLeftGroup:AddToggle("manualSpam", {
+    Text = "Manual Spam",
+    Default = false,
+    Risky = true,
+})
+
+Toggles.manualSpam:OnChanged(function()
+    ParryConfig.manualSpamEnabled = Toggles.manualSpam.Value
+end)
+
+SpamLeftGroup:AddSlider("spamRate", {
+    Text = "Spam Rate",
+    Default = 240,
+    Min = 60,
+    Max = 5000,
+    Rounding = 0,
+})
+
+Options.spamRate:OnChanged(function()
+    ParryConfig.spamRate = Options.spamRate.Value
+end)
+
+local SpamRightGroup = Tabs.Spam:AddRightGroupbox("Auto Spam")
+
+SpamRightGroup:AddToggle("autoSpam", {
+    Text = "Auto Spam",
+    Default = false,
+    Risky = true,
+})
+
+Toggles.autoSpam:OnChanged(function()
+    ParryConfig.autoSpamEnabled = Toggles.autoSpam.Value
+end)
+
+SpamRightGroup:AddSlider("spamThreshold", {
+    Text = "Parry Threshold",
+    Default = 1.5,
+    Min = 1,
+    Max = 5,
+    Rounding = 1,
+})
+
+Options.spamThreshold:OnChanged(function()
+    ParryConfig.spamThreshold = Options.spamThreshold.Value
+end)
+
+local VisualsLeftGroup = Tabs.Visuals:AddLeftGroupbox("Ball Visualizers")
+
+VisualsLeftGroup:AddToggle("ballVisualizer", {
+    Text = "Distance To Hit",
+    Default = true,
+})
+
+Toggles.ballVisualizer:OnChanged(function()
+    VisualizerToggles.ballVisualizer = Toggles.ballVisualizer.Value
+end)
+
+VisualsLeftGroup:AddToggle("clashVisualizer", {
+    Text = "Clash Range",
+    Default = true,
+})
+
+Toggles.clashVisualizer:OnChanged(function()
+    VisualizerToggles.clashVisualizer = Toggles.clashVisualizer.Value
+end)
+
+VisualsLeftGroup:AddToggle("distanceVisualizer", {
+    Text = "Ball Distance",
+    Default = true,
+})
+
+Toggles.distanceVisualizer:OnChanged(function()
+    VisualizerToggles.distanceVisualizer = Toggles.distanceVisualizer.Value
+end)
+
+local VisualsRightGroup = Tabs.Visuals:AddRightGroupbox("Circle Visualizers")
+
+VisualsRightGroup:AddToggle("circleBallVisualizer", {
+    Text = "Distance To Hit",
+    Default = true,
+})
+
+Toggles.circleBallVisualizer:OnChanged(function()
+    VisualizerToggles.circleBallVisualizer = Toggles.circleBallVisualizer.Value
+end)
+
+VisualsRightGroup:AddToggle("circleClashVisualizer", {
+    Text = "Clash Range",
+    Default = true,
+})
+
+Toggles.circleClashVisualizer:OnChanged(function()
+    VisualizerToggles.circleClashVisualizer = Toggles.circleClashVisualizer.Value
+end)
+
+VisualsRightGroup:AddToggle("circleDistanceVisualizer", {
+    Text = "Ball Distance",
+    Default = true,
+})
+
+Toggles.circleDistanceVisualizer:OnChanged(function()
+    VisualizerToggles.circleDistanceVisualizer = Toggles.circleDistanceVisualizer.Value
+end)
+
+local VisualsSettingsGroup = Tabs.Visuals:AddLeftGroupbox("Visualizer Settings")
+
+VisualsSettingsGroup:AddDropdown("visualizerShape", {
+    Values = {"Ball", "Block", "Cylinder", "Wedge", "CornerWedge"},
+    Default = "Ball",
+    Text = "Shape",
+})
+
+Options.visualizerShape:OnChanged(function()
+    VisualizerSettings.shape = Options.visualizerShape.Value
+end)
+
+VisualsSettingsGroup:AddDropdown("visualizerMaterial", {
+    Values = {"Plastic", "ForceField", "Glass", "Neon", "SmoothPlastic", "Metal"},
+    Default = "ForceField",
+    Text = "Material",
+})
+
+Options.visualizerMaterial:OnChanged(function()
+    VisualizerSettings.material = Options.visualizerMaterial.Value
+end)
+
+VisualsSettingsGroup:AddLabel("Ball Color"):AddColorPicker("visualizerColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+})
+
+Options.visualizerColor:OnChanged(function()
+    VisualizerSettings.color = Options.visualizerColor.Value
+end)
+
+VisualsSettingsGroup:AddLabel("Circle Color"):AddColorPicker("circleVisualizerColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+})
+
+Options.circleVisualizerColor:OnChanged(function()
+    VisualizerSettings.circleColor = Options.circleVisualizerColor.Value
+end)
+
+VisualsSettingsGroup:AddSlider("visualizerTransparency", {
+    Text = "Transparency",
+    Default = 0,
+    Min = 0,
+    Max = 1,
+    Rounding = 1,
+})
+
+Options.visualizerTransparency:OnChanged(function()
+    VisualizerSettings.transparency = Options.visualizerTransparency.Value
+end)
+
+VisualsSettingsGroup:AddSlider("circleHeight", {
+    Text = "Circle Height",
+    Default = 0.5,
+    Min = 0.5,
+    Max = 5,
+    Rounding = 1,
+})
+
+Options.circleHeight:OnChanged(function()
+    VisualizerSettings.circleHeight = Options.circleHeight.Value
+end)
+
+VisualsSettingsGroup:AddSlider("clashRangeSize", {
+    Text = "Clash Range Size",
+    Default = 30,
+    Min = 10,
+    Max = 100,
+    Rounding = 1,
+})
+
+Options.clashRangeSize:OnChanged(function()
+    VisualizerSettings.clashDistance = Options.clashRangeSize.Value
+end)
+
+local VisualsRainbowGroup = Tabs.Visuals:AddRightGroupbox("Rainbow Effects")
+
+VisualsRainbowGroup:AddToggle("rainbowBallVisualizer", {
+    Text = "Rainbow Ball Visualizer",
+    Default = false,
+})
+
+Toggles.rainbowBallVisualizer:OnChanged(function()
+    ParryConfig.rainbowVisualizer = Toggles.rainbowBallVisualizer.Value
+end)
+
+VisualsRainbowGroup:AddToggle("rainbowCircleVisualizer", {
+    Text = "Rainbow Circle Visualizer",
+    Default = false,
+})
+
+Toggles.rainbowCircleVisualizer:OnChanged(function()
+    ParryConfig.rainbowCircle = Toggles.rainbowCircleVisualizer.Value
+end)
+
+local UtilitiesLeftGroup = Tabs.Utilities:AddLeftGroupbox("Utilities")
+
+UtilitiesLeftGroup:AddToggle("antiSlashEffect", {
+    Text = "Anti Slash Effect",
+    Default = false,
+})
+
+Toggles.antiSlashEffect:OnChanged(function()
+    UtilityConfig.antiSlashEffect = Toggles.antiSlashEffect.Value
+end)
+
+local UtilitiesRightGroup = Tabs.Utilities:AddRightGroupbox("Auto Features")
+
+UtilitiesRightGroup:AddToggle("autoClaimRewards", {
+    Text = "Auto Claim Rewards",
+    Default = false,
+    Risky = true,
+})
+
+Toggles.autoClaimRewards:OnChanged(function()
+    UtilityConfig.autoClaimRewards = Toggles.autoClaimRewards.Value
+end)
+
+UtilitiesRightGroup:AddToggle("autoExplosionCrate", {
+    Text = "Auto Explosion Crate",
+    Default = false,
+    Risky = true,
+})
+
+Toggles.autoExplosionCrate:OnChanged(function()
+    UtilityConfig.autoExplosionCrate = Toggles.autoExplosionCrate.Value
+end)
+
+UtilitiesRightGroup:AddToggle("autoSwordCrate", {
+    Text = "Auto Sword Crate",
+    Default = false,
+    Risky = true,
+})
+
+Toggles.autoSwordCrate:OnChanged(function()
+    UtilityConfig.autoSwordCrate = Toggles.autoSwordCrate.Value
+end)
+
+local WorldLeftGroup = Tabs.World:AddLeftGroupbox("World Settings")
+
+WorldLeftGroup:AddButton({
+    Text = "Reset World",
+    Func = function()
+        Lighting.Ambient = OriginalAmbient
+        Lighting.FogColor = OriginalFogColor
+        Lighting.ClockTime = OriginalClockTime
+        Library:Notify({
+            Title = "Invictus",
+            Description = "world settings reset!",
+            Time = 2
+        })
+    end,
+})
+
+WorldLeftGroup:AddLabel("Ambient Color"):AddColorPicker("ambientColor", {
+    Default = Lighting.Ambient,
+})
